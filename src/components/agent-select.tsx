@@ -32,6 +32,7 @@ const STATUS_GLYPH: Record<AgentInfo["status"], { ch: string; color: string; tex
 export function AgentSelect({ onConfirm, onBack }: Props) {
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [notice, setNotice] = useState<string>("");
 
   // Probe agent installation state on mount.
   useEffect(() => {
@@ -39,11 +40,9 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
     probeAgents().then((info) => {
       if (!alive) return;
       setAgents(info);
-      // default-select agents that are installed or configured
-      const defaults = info
-        .filter((a) => a.status !== "missing")
-        .map((a) => a.id);
-      setSelected(new Set(defaults));
+      // Default-select NOTHING — the user must explicitly opt in to each
+      // target agent. Pre-selecting all would cause accidental mass installs.
+      setSelected(new Set());
     });
     return () => {
       alive = false;
@@ -72,12 +71,21 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
   });
 
   function toggle(id: string) {
+    setNotice("");
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  }
+
+  function confirm() {
+    if (selected.size === 0) {
+      setNotice("请至少用 Space 勾选一个目标 Agent");
+      return;
+    }
+    onConfirm([...selected] as AgentId[]);
   }
 
   return (
@@ -88,9 +96,14 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
         items={items}
         selected={selected}
         onToggle={toggle}
-        onConfirm={() => onConfirm([...selected] as AgentId[])}
+        onConfirm={confirm}
         onBack={onBack}
       />
+      {notice ? (
+        <Box marginTop={1}>
+          <Text color={theme.danger}>{notice}</Text>
+        </Box>
+      ) : null}
       <FooterHint hints={HINTS} />
     </Box>
   );

@@ -75,13 +75,31 @@ function printVersion(): void {
 function main(): void {
   const { flags, url } = parseArgs(process.argv.slice(2));
 
-  // Clean exit on Ctrl+C / SIGINT — Ink normally handles this, but ensure
-  // we don't leave the terminal in a weird state if something throws.
-  const instance = render(<App initialUrl={url} flags={flags} />);
+  // Enter the alternate screen buffer so the TUI starts on a clean screen
+  // (previous terminal content is hidden) and restored when we exit —
+  // like vim/htop. Supported by Windows Terminal, mintty (Git Bash), etc.
+  const stdout = process.stdout;
+  stdout.write("\x1b[?1049h\x1b[2J\x1b[3J\x1b[H");
+
+  const instance = render(<App initialUrl={url} flags={flags} />, {
+    exitOnCtrlC: false,
+  });
+
+  const leaveAltScreen = (): void => {
+    stdout.write("\x1b[?1049l");
+  };
+  // Restore the screen on any exit path.
+  process.on("exit", leaveAltScreen);
+  process.on("SIGINT", () => {
+    instance.unmount();
+    leaveAltScreen();
+    process.exit(0);
+  });
 
   // Guard against unhandled rejections killing the process ugly.
-  const onFatal = (err: unknown) => {
+  const onFatal = (err: unknown): void => {
     instance.unmount();
+    leaveAltScreen();
     console.error(
       "\nskill 遇到错误：",
       err instanceof Error ? err.message : String(err),

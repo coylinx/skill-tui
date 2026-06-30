@@ -6,8 +6,8 @@ export const theme = {
   panel: "#161b22", // input/box fill
   text: "#e6edf3", // primary text
   textMuted: "#7d8590", // secondary text + logo left half
-  accent: "#2f81f7", // blue — logo right half, selection, emphasis
-  accentDim: "#1f6feb", // secondary emphasis
+  accent: "#f5a623", // amber-orange — logo right half, selection, emphasis
+  accentDim: "#d4881b", // secondary emphasis (deep orange)
   success: "#3fb950", // green — done, checked
   warning: "#d29922", // amber — exists, configured-only
   danger: "#f85149", // red — error, missing
