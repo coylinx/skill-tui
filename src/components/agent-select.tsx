@@ -6,6 +6,7 @@ import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import { CheckboxList, type CheckboxItem } from "./checkbox-list.js";
 import { FooterHint, type Hint } from "./footer-hint.js";
+import { ScreenFrame } from "./screen-frame.js";
 import { Title } from "./title.js";
 import { probeAgents, displayPath, type AgentInfo } from "../core/agents.js";
 import { theme } from "../theme.js";
@@ -51,12 +52,12 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
 
   if (!agents) {
     return (
-      <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2}>
+      <ScreenFrame>
         <Title />
         <Text dimColor color={theme.textMuted}>
           正在探测已安装的 Agent …
         </Text>
-      </Box>
+      </ScreenFrame>
     );
   }
 
@@ -89,7 +90,7 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
   }
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center">
+    <ScreenFrame>
       <Title />
       <CheckboxList
         title="选择目标 Agent"
@@ -105,6 +106,6 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
         </Box>
       ) : null}
       <FooterHint hints={HINTS} />
-    </Box>
+    </ScreenFrame>
   );
 }

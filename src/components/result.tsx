@@ -5,6 +5,7 @@
 import { Box, Text, useApp, useInput } from "ink";
 import { useState } from "react";
 import { FooterHint, type Hint } from "./footer-hint.js";
+import { ScreenFrame } from "./screen-frame.js";
 import { Title } from "./title.js";
 import { recentBackups, restoreBackup, type BackupRecord } from "../core/backup.js";
 import { displayPath } from "../core/agents.js";
@@ -72,7 +73,7 @@ export function Result({ summary, onRestart }: Props) {
   });
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2}>
+    <ScreenFrame>
       <Title />
 
       <Box
@@ -144,7 +145,7 @@ export function Result({ summary, onRestart }: Props) {
       ) : (
         <FooterHint hints={HINTS} />
       )}
-    </Box>
+    </ScreenFrame>
   );
 }
 

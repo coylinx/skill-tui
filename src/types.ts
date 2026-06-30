@@ -6,6 +6,7 @@ export interface Skill {
   dir: string; // absolute local path to the skill directory
   description: string; // frontmatter.description, fallback to body first line
   relativePath: string; // path relative to the repo root
+  installName?: string; // custom install folder name (defaults to `name`)
 }
 
 export type AgentId =
@@ -56,6 +57,12 @@ export type Screen =
   | { kind: "skills"; repoDir: string; url: string }
   | {
       kind: "agents";
+      repoDir: string;
+      url: string;
+      selected: string[]; // skill ids
+    }
+  | {
+      kind: "naming";
       repoDir: string;
       url: string;
       selected: string[]; // skill ids

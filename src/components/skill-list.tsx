@@ -2,10 +2,10 @@
 // Wraps the generic CheckboxList with skill-specific labels/descriptions
 // and the standard footer hints.
 
-import { Box } from "ink";
 import { useState } from "react";
 import { CheckboxList, type CheckboxItem } from "./checkbox-list.js";
 import { FooterHint, type Hint } from "./footer-hint.js";
+import { ScreenFrame } from "./screen-frame.js";
 import { Title } from "./title.js";
 import type { Skill } from "../types.js";
 
@@ -45,7 +45,7 @@ export function SkillList({ url, skills, onConfirm, onBack }: Props) {
   }
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center">
+    <ScreenFrame>
       <Title />
       <CheckboxList
         title={`发现 ${skills.length} 个 Skill — 来自 ${shortUrl(url)}`}
@@ -57,7 +57,7 @@ export function SkillList({ url, skills, onConfirm, onBack }: Props) {
         emptyText="未发现任何 Skill（仓库内无 SKILL.md），按 Esc 返回"
       />
       <FooterHint hints={HINTS} />
-    </Box>
+    </ScreenFrame>
   );
 }
 

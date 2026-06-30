@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { App, type AppFlags } from "./app.js";
+import { pruneCache } from "./core/cache.js";
 
 interface ParsedArgs {
   flags: AppFlags;
@@ -74,6 +75,14 @@ function printVersion(): void {
 
 function main(): void {
   const { flags, url } = parseArgs(process.argv.slice(2));
+
+  // Prune cached repos older than 7 days before entering the TUI, so disk
+  // usage from ~/.skill-tui/cache/ stays bounded. Best-effort, non-fatal.
+  try {
+    pruneCache();
+  } catch {
+    // ignore — pruning must never block the app
+  }
 
   // Enter the alternate screen buffer so the TUI starts on a clean screen
   // (previous terminal content is hidden) and restored when we exit —

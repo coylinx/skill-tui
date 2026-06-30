@@ -4,6 +4,7 @@
 
 import { Box, Text } from "ink";
 import { theme } from "../theme.js";
+import { ScreenFrame } from "./screen-frame.js";
 import { Loading } from "./spinner.js";
 import { Title } from "./title.js";
 
@@ -15,7 +16,7 @@ interface Props {
 
 export function Cloning({ url, cachePath, error }: Props) {
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2}>
+    <ScreenFrame>
       <Title />
 
       <Box flexDirection="column" alignItems="center" marginTop={1}>
@@ -25,9 +26,11 @@ export function Cloning({ url, cachePath, error }: Props) {
               ✗ 克隆失败
             </Text>
             <Text color={theme.danger}>{error}</Text>
-            <Text dimColor color={theme.textMuted}>
-              按 Esc 返回重新输入
-            </Text>
+            <Box marginTop={1}>
+              <Text dimColor color={theme.textMuted}>
+                按 Esc 返回重新输入
+              </Text>
+            </Box>
           </>
         ) : (
           <>
@@ -40,6 +43,6 @@ export function Cloning({ url, cachePath, error }: Props) {
           </>
         )}
       </Box>
-    </Box>
+    </ScreenFrame>
   );
 }

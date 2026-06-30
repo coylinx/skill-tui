@@ -7,6 +7,7 @@ import TextInput from "ink-text-input";
 import { useEffect, useState } from "react";
 import { theme } from "../theme.js";
 import { FooterHint, type Hint } from "./footer-hint.js";
+import { ScreenFrame } from "./screen-frame.js";
 import { Title } from "./title.js";
 
 const HINTS: Hint[] = [
@@ -70,7 +71,7 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
   }
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2}>
+    <ScreenFrame>
       <Title />
 
       <Box flexDirection="column" alignItems="center" marginTop={1}>
@@ -97,6 +98,6 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
 
         <FooterHint hints={HINTS} />
       </Box>
-    </Box>
+    </ScreenFrame>
   );
 }

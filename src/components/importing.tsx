@@ -4,6 +4,7 @@
 
 import { Box, Text } from "ink";
 import { useEffect, useRef, useState } from "react";
+import { ScreenFrame } from "./screen-frame.js";
 import { Title } from "./title.js";
 import { ProgressBar } from "./progress-bar.js";
 import { importTask } from "../core/importer.js";
@@ -72,7 +73,7 @@ export function Importing({ tasks, overwrite, noBackup, onComplete }: Props) {
   const sorted = [...results].reverse(); // most recent first
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2}>
+    <ScreenFrame>
       <Title />
 
       <Box flexDirection="column" alignItems="center" marginBottom={1}>
@@ -112,6 +113,6 @@ export function Importing({ tasks, overwrite, noBackup, onComplete }: Props) {
           </Box>
         ))}
       </Box>
-    </Box>
+    </ScreenFrame>
   );
 }

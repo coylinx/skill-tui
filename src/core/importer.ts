@@ -49,7 +49,8 @@ export function plan(
   noBackup: boolean,
 ): PlanItem[] {
   return tasks.map(({ skill, agent }) => {
-    const targetPath = skillTargetPath(agent, skill.name);
+    const installName = skill.installName ?? skill.name;
+    const targetPath = skillTargetPath(agent, installName);
     const exists = existsSync(targetPath);
     let action: OverwriteMode;
     let backupPath: string | undefined;
@@ -73,7 +74,8 @@ export interface ImportOptions {
 /** Execute a single import task. Writes to disk. */
 export function importTask(task: ImportTask, opts: ImportOptions): ImportResult {
   const { skill, agent } = task;
-  const targetPath = skillTargetPath(agent, skill.name);
+  const installName = skill.installName ?? skill.name;
+  const targetPath = skillTargetPath(agent, installName);
   const exists = existsSync(targetPath);
 
   // Case 1: target absent → fresh install.
@@ -114,7 +116,7 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
   let backupPath: string | undefined;
   if (!opts.noBackup) {
     try {
-      backupPath = backupExisting(agent, skill.name, targetPath) ?? undefined;
+      backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
     } catch (e) {
       return {
         status: "failed",

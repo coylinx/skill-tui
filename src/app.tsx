@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { AgentSelect } from "./components/agent-select.js";
 import { Cloning } from "./components/cloning.js";
 import { Importing } from "./components/importing.js";
+import { Naming } from "./components/naming.js";
 import { Preview } from "./components/preview.js";
 import { Result } from "./components/result.js";
 import { SkillList } from "./components/skill-list.js";
@@ -44,6 +45,9 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
   const [cloneError, setCloneError] = useState<string | undefined>();
   const [cloneCachePath, setCloneCachePath] = useState<string>("");
   const [skills, setSkills] = useState<Skill[]>([]);
+  // Skills after optional renaming (installName set). Used when building
+  // import tasks so the target folder reflects the user's chosen name.
+  const [renamedSkills, setRenamedSkills] = useState<Skill[]>([]);
   // Remember the skills-screen context (repoDir + url) so the preview's
   // back button can return to agent-select → skills without losing state.
   const skillsCtx = useRef<{ repoDir: string; url: string }>({ repoDir: "", url: "" });
@@ -101,7 +105,7 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
           skills={skills}
           onConfirm={(selectedIds) =>
             setScreen({
-              kind: "agents",
+              kind: "naming",
               repoDir: screen.repoDir,
               url: screen.url,
               selected: selectedIds,
@@ -110,11 +114,32 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
         />
       );
 
+    case "naming": {
+      const selectedSkills = screen.selected
+        .map((id) => skills.find((s) => s.id === id))
+        .filter((s): s is Skill => Boolean(s));
+      return (
+        <Naming
+          skills={selectedSkills}
+          onConfirm={(renamed) => {
+            setRenamedSkills(renamed);
+            setScreen({
+              kind: "agents",
+              repoDir: screen.repoDir,
+              url: screen.url,
+              selected: renamed.map((s) => s.id),
+            });
+          }}
+          onBack={() => setScreen({ kind: "skills", repoDir: screen.repoDir, url: screen.url })}
+        />
+      );
+    }
+
     case "agents":
       return (
         <AgentSelect
           onConfirm={(agentIds) => {
-            const tasks = buildTasks(skills, screen.selected, agentIds);
+            const tasks = buildTasks(renamedSkills, screen.selected, agentIds);
             setScreen({
               kind: "preview",
               tasks,
@@ -122,7 +147,14 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
               dryRun: flags.dryRun,
             });
           }}
-          onBack={() => setScreen({ kind: "skills", repoDir: screen.repoDir, url: screen.url })}
+          onBack={() =>
+            setScreen({
+              kind: "naming",
+              repoDir: screen.repoDir,
+              url: screen.url,
+              selected: screen.selected,
+            })
+          }
         />
       );
 
