@@ -6,7 +6,7 @@ import { existsSync, readdirSync, statSync, rmSync } from "node:fs";
 import path from "node:path";
 import { cacheDir } from "./paths.js";
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 export interface PruneResult {
   removed: string[];
@@ -18,7 +18,7 @@ export interface PruneResult {
  * Best-effort: errors on individual entries are swallowed (logged to nothing)
  * so a startup prune can never block the app.
  */
-export function pruneCache(maxAgeMs = SEVEN_DAYS_MS): PruneResult {
+export function pruneCache(maxAgeMs = TWO_HOURS_MS): PruneResult {
   const removed: string[] = [];
   const kept: string[] = [];
   if (!existsSync(cacheDir)) return { removed, kept };

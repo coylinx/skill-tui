@@ -18,7 +18,7 @@ interface Props {
 }
 
 const HINTS: Hint[] = [
-  { key: "r", label: "再导一次" },
+  { key: "r/Esc", label: "回首页" },
   { key: "o", label: "打开安装目录" },
   { key: "b", label: "恢复备份" },
   { key: "q", label: "退出" },
@@ -58,9 +58,9 @@ export function Result({ summary, onRestart }: Props) {
       }
       return;
     }
-    if (ch === "r") {
+    if (ch === "r" || key.escape) {
       onRestart();
-    } else if (ch === "q" || key.escape) {
+    } else if (ch === "q") {
       exit();
     } else if (ch === "o") {
       // open the first done result's parent (agent skills dir)

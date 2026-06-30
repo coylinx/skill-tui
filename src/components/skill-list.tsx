@@ -2,11 +2,13 @@
 // Wraps the generic CheckboxList with skill-specific labels/descriptions
 // and the standard footer hints.
 
+import { Box, Text } from "ink";
 import { useState } from "react";
 import { CheckboxList, type CheckboxItem } from "./checkbox-list.js";
 import { FooterHint, type Hint } from "./footer-hint.js";
 import { ScreenFrame } from "./screen-frame.js";
 import { Title } from "./title.js";
+import { theme } from "../theme.js";
 import type { Skill } from "../types.js";
 
 const HINTS: Hint[] = [
@@ -26,8 +28,9 @@ interface Props {
 
 export function SkillList({ url, skills, onConfirm, onBack }: Props) {
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(skills.map((s) => s.id)), // default: all selected
+    () => new Set(), // default: nothing selected — user must explicitly opt in
   );
+  const [notice, setNotice] = useState<string>("");
 
   const items: CheckboxItem[] = skills.map((s) => ({
     id: s.id,
@@ -36,12 +39,21 @@ export function SkillList({ url, skills, onConfirm, onBack }: Props) {
   }));
 
   function toggle(id: string) {
+    setNotice("");
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  }
+
+  function confirm() {
+    if (selected.size === 0) {
+      setNotice("请至少用 Space 勾选一个 Skill");
+      return;
+    }
+    onConfirm([...selected]);
   }
 
   return (
@@ -52,10 +64,15 @@ export function SkillList({ url, skills, onConfirm, onBack }: Props) {
         items={items}
         selected={selected}
         onToggle={toggle}
-        onConfirm={() => onConfirm([...selected])}
+        onConfirm={confirm}
         onBack={onBack ?? (() => {})}
         emptyText="未发现任何 Skill（仓库内无 SKILL.md），按 Esc 返回"
       />
+      {notice ? (
+        <Box marginTop={1}>
+          <Text color={theme.danger}>{notice}</Text>
+        </Box>
+      ) : null}
       <FooterHint hints={HINTS} />
     </ScreenFrame>
   );

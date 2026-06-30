@@ -17,8 +17,8 @@ import { pruneCache } from "../src/core/cache.js";
 // without module mocking, so we verify the age comparison logic directly.
 
 describe("pruneCache age logic", () => {
-  it("7 days equals 604800000 ms", () => {
-    expect(7 * 24 * 60 * 60 * 1000).toBe(604800000);
+  it("2 hours equals 7200000 ms", () => {
+    expect(2 * 60 * 60 * 1000).toBe(7200000);
   });
 });
 
@@ -46,15 +46,15 @@ describe("pruneCache on a temp dir", () => {
     writeFileSync(path.join(oldDir, "x"), "x");
     writeFileSync(path.join(freshDir, "x"), "x");
 
-    // Set oldDir mtime to 10 days ago, freshDir to 1 day ago.
+    // Set oldDir mtime to 3 hours ago, freshDir to 1 hour ago.
     const now = Date.now();
-    const tenDaysAgo = (now - 10 * 86400000) / 1000;
-    const oneDayAgo = (now - 1 * 86400000) / 1000;
-    utimesSync(oldDir, tenDaysAgo, tenDaysAgo);
-    utimesSync(freshDir, oneDayAgo, oneDayAgo);
+    const threeHoursAgo = (now - 3 * 3600000) / 1000;
+    const oneHourAgo = (now - 1 * 3600000) / 1000;
+    utimesSync(oldDir, threeHoursAgo, threeHoursAgo);
+    utimesSync(freshDir, oneHourAgo, oneHourAgo);
 
     // Replicate pruneCache logic against tmp.
-    const maxAge = 7 * 86400000;
+    const maxAge = 2 * 3600000;
     const entries = readdirSync(tmp);
     const removed: string[] = [];
     for (const entry of entries) {

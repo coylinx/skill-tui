@@ -1,10 +1,14 @@
 // Screen ③b: rename the install folder for each selected skill.
-// Lists every selected skill with an editable install-name field.
-// ↑/↓ moves between fields, typing edits the focused name, Enter confirms
-// all and proceeds to agent selection. Esc goes back to the skill list.
 //
-// The install name becomes the /command name in Claude Code / Codex, so this
-// is where the user controls what the skill folder is called on disk.
+// Interaction model (no separate "edit mode"):
+//   • Every row shows its install name in a bordered input box.
+//   • The focused row's box has an accent border; others are dim.
+//   • Typing edits the focused row directly — no "enter edit mode" step.
+//   • ↑/↓ moves focus between rows.
+//   • Enter confirms all (sanitized) and proceeds.
+//   • Esc goes back to the skill list.
+//
+// The install name becomes the /command name in Claude Code / Codex.
 
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
@@ -17,6 +21,7 @@ import type { Skill } from "../types.js";
 
 const HINTS: Hint[] = [
   { key: "↑↓", label: "切换" },
+  { key: "直接输入", label: "改名" },
   { key: "Enter", label: "确认" },
   { key: "Esc", label: "返回" },
 ];
@@ -27,8 +32,7 @@ interface Props {
   onBack: () => void;
 }
 
-// Sanitize a folder name: lowercase letters, numbers, hyphens only (the
-// Agent Skills naming constraint). Anything else becomes a hyphen.
+// Sanitize a folder name: lowercase letters, numbers, hyphens only.
 function sanitize(name: string): string {
   return name
     .trim()
@@ -42,42 +46,32 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
     skills.map((s) => s.installName ?? s.name),
   );
   const [cursor, setCursor] = useState(0);
-  const [editing, setEditing] = useState(false);
 
-  // If a skill list refresh changes the selection, re-init.
   useEffect(() => {
     setNames(skills.map((s) => s.installName ?? s.name));
   }, [skills]);
 
-  useInput((input, key) => {
-    if (editing) {
-      // While editing, only Enter exits edit mode; arrow keys stay in the field.
-      if (key.return) {
-        setNames((prev) => {
-          const next = [...prev];
-          next[cursor] = sanitize(next[cursor]) || skills[cursor].name;
-          return next;
-        });
-        setEditing(false);
-      } else if (key.escape) {
-        setEditing(false);
-      }
-      return;
-    }
+  function setNameAt(i: number, v: string) {
+    setNames((prev) => {
+      const next = [...prev];
+      next[i] = v;
+      return next;
+    });
+  }
+
+  // Handle navigation + confirm/back. Arrow keys move focus; Enter confirms;
+  // Esc goes back. TextInput handles character input for the focused row.
+  useInput((_input, key) => {
     if (key.upArrow) {
       setCursor((c) => (c - 1 + skills.length) % skills.length);
     } else if (key.downArrow) {
       setCursor((c) => (c + 1) % skills.length);
     } else if (key.return) {
-      // Confirm all: apply sanitized names and proceed.
       const finalNames = names.map((n, i) => sanitize(n) || skills[i].name);
       const renamed = skills.map((s, i) => ({ ...s, installName: finalNames[i] }));
       onConfirm(renamed);
     } else if (key.escape) {
       onBack();
-    } else if (input === " " || (input && !key.ctrl && !key.meta && input.length === 1)) {
-      // Start editing the focused name.
-      setEditing(true);
     }
   });
 
@@ -101,64 +95,48 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
 
         {skills.map((skill, i) => {
           const focused = i === cursor;
-          const isEditing = focused && editing;
           return (
-            <Box key={skill.id} flexDirection="column" marginBottom={isEditing ? 1 : 0}>
-              {isEditing ? (
-                <>
-                  {/* Header line: original name + arrow */}
-                  <Box flexDirection="row" alignItems="center">
-                    <Text color={theme.accent} bold>
-                      ▸ {skill.name} →
-                    </Text>
-                  </Box>
-                  {/* The bordered input box — clearly shows where to type */}
-                  <Box
-                    marginLeft={2}
-                    paddingX={1}
-                    width={40}
-                    borderStyle="round"
-                    borderColor={theme.accent}
-                    backgroundColor={theme.panel}
-                  >
-                    <TextInput
-                      value={names[i]}
-                      onChange={(v) =>
-                        setNames((prev) => {
-                          const next = [...prev];
-                          next[i] = v;
-                          return next;
-                        })
-                      }
-                      showCursor
-                    />
-                  </Box>
-                </>
-              ) : (
-                /* Non-editing row: single compact line */
-                <Box flexDirection="row" alignItems="center">
-                  <Text color={focused ? theme.accent : theme.textMuted}>
-                    {focused ? "▸" : " "}
-                  </Text>
-                  <Text color={theme.text} dimColor={!focused}>
-                    {" "}
-                    {skill.name}
-                  </Text>
-                  <Text color={theme.textMuted}> → </Text>
-                  <Text color={focused ? theme.accent : theme.text} bold={focused}>
-                    {names[i] || skill.name}
-                  </Text>
-                </Box>
-              )}
+            <Box key={skill.id} flexDirection="column" marginBottom={1}>
+              {/* Original name label */}
+              <Box flexDirection="row">
+                <Text color={focused ? theme.accent : theme.textMuted}>
+                  {focused ? "▸ " : "  "}
+                </Text>
+                <Text color={theme.text} dimColor>
+                  {skill.name}
+                </Text>
+              </Box>
+              {/* Bordered input box — focused row is editable, others are static.
+                  The box needs height=3 so the border top/bottom sit on their
+                  own lines and the text doesn't overlap the border. */}
+              <Box
+                marginLeft={2}
+                marginTop={0}
+                width={48}
+                height={3}
+                borderStyle="round"
+                borderColor={focused ? theme.accent : theme.border}
+                backgroundColor={focused ? theme.panel : undefined}
+                alignItems="center"
+                paddingLeft={1}
+              >
+                {focused ? (
+                  <TextInput
+                    value={names[i]}
+                    onChange={(v) => setNameAt(i, v)}
+                    showCursor
+                  />
+                ) : (
+                  <Text color={theme.textMuted}>{names[i] || skill.name}</Text>
+                )}
+              </Box>
             </Box>
           );
         })}
 
-        <Box marginTop={1}>
+        <Box>
           <Text dimColor color={theme.textMuted}>
-            {editing
-              ? "输入名称 · Enter 确认本项 · Esc 取消编辑"
-              : "选中一项按任意键开始输入（字母/数字/-）· Enter 确认全部"}
+            直接输入改名 · ↑↓ 切换 · Enter 确认 · Esc 返回
           </Text>
         </Box>
       </Box>

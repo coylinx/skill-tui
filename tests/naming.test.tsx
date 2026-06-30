@@ -19,7 +19,7 @@ function makeSkill(name: string): Skill {
 }
 
 describe("Naming screen", () => {
-  it("renders each skill with its default install name", () => {
+  it("renders each skill with a bordered input box", () => {
     const skills = [makeSkill("code-review"), makeSkill("deploy")];
     const { lastFrame, unmount } = render(
       <Naming skills={skills} onConfirm={() => {}} onBack={() => {}} />,
@@ -29,6 +29,8 @@ describe("Naming screen", () => {
     expect(frame).toMatch(/命名安装文件夹/);
     expect(frame).toMatch(/code-review/);
     expect(frame).toMatch(/deploy/);
+    // bordered boxes present
+    expect(frame).toMatch(/╭/);
   });
 
   it("confirms with sanitized names on Enter", async () => {
@@ -49,7 +51,7 @@ describe("Naming screen", () => {
     expect(confirmed![0].installName).toBe("code-review");
   });
 
-  it("rejects invalid characters by sanitizing to hyphens", async () => {
+  it("sanitizes invalid characters to hyphens on confirm", async () => {
     const skills = [makeSkill("code review!")];
     let confirmed: Skill[] | null = null;
     const { stdin, unmount } = render(
@@ -60,11 +62,28 @@ describe("Naming screen", () => {
       />,
     );
     await flush();
-    // start editing, type nothing extra, just confirm — name already has bad chars
     stdin.write("\r");
     await flush();
     unmount();
-    // "code review!" → sanitized to "code-review"
     expect(confirmed![0].installName).toBe("code-review");
+  });
+
+  it("moves focus with arrow keys (▸ follows the cursor)", async () => {
+    const skills = [makeSkill("alpha"), makeSkill("beta")];
+    const { stdin, lastFrame, unmount } = render(
+      <Naming skills={skills} onConfirm={() => {}} onBack={() => {}} />,
+    );
+    await flush();
+    // first row focused by default
+    expect(lastFrame() ?? "").toMatch(/▸ alpha/);
+    // down → second row
+    stdin.write("\u001b[B");
+    await flush();
+    expect(lastFrame() ?? "").toMatch(/▸ beta/);
+    // up → back to first
+    stdin.write("\u001b[A");
+    await flush();
+    expect(lastFrame() ?? "").toMatch(/▸ alpha/);
+    unmount();
   });
 });

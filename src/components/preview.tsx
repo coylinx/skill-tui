@@ -101,7 +101,7 @@ export function Preview({ tasks, dryRun, noBackup, onConfirm, onBack }: Props) {
                 </Text>
                 <Text color={theme.text}>
                   {" "}
-                  {item.skill.name.padEnd(20)}
+                  {(item.skill.installName ?? item.skill.name).padEnd(20)}
                 </Text>
                 <Text dimColor color={theme.textMuted}>
                   → {displayPath(item.targetPath)}
@@ -147,7 +147,8 @@ function printDryRun(items: PlanItem[], overwrite: boolean): void {
         ? "OVERWRITE"
         : "SKIP"
       : "INSTALL";
-    console.log(`  ${tag.padEnd(9)} ${item.agent}/${item.skill.name} → ${item.targetPath}`);
+    const name = item.skill.installName ?? item.skill.name;
+    console.log(`  ${tag.padEnd(9)} ${item.agent}/${name} → ${item.targetPath}`);
   }
   console.log("");
 }

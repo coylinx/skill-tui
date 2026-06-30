@@ -38,7 +38,7 @@ export function Importing({ tasks, overwrite, noBackup, onComplete }: Props) {
     async function worker() {
       while (queue.length > 0 && !cancelled) {
         const task = queue.shift()!;
-        setCurrent(`${task.skill.name} → ${task.agent}`);
+        setCurrent(`${task.skill.installName ?? task.skill.name} → ${task.agent}`);
         // yield to the event loop so the UI can repaint between tasks
         await new Promise((r) => setTimeout(r, 0));
         const res = importTask(task, opts);
