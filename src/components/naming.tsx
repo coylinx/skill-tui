@@ -91,7 +91,7 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
         borderColor={theme.border}
         paddingX={2}
         paddingY={1}
-        minWidth={60}
+        minWidth={64}
       >
         <Box marginBottom={1}>
           <Text color={theme.accent} bold>
@@ -101,40 +101,64 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
 
         {skills.map((skill, i) => {
           const focused = i === cursor;
+          const isEditing = focused && editing;
           return (
-            <Box key={skill.id} flexDirection="row" alignItems="center">
-              <Text color={focused ? theme.accent : theme.textMuted}>
-                {focused ? "▸" : " "}
-              </Text>
-              <Text color={theme.text} dimColor={!focused}>
-                {" "}
-                {skill.name.padEnd(24)}
-              </Text>
-              <Text color={theme.textMuted}>→ </Text>
-              {focused && editing ? (
-                <TextInput
-                  value={names[i]}
-                  onChange={(v) =>
-                    setNames((prev) => {
-                      const next = [...prev];
-                      next[i] = v;
-                      return next;
-                    })
-                  }
-                  showCursor
-                />
+            <Box key={skill.id} flexDirection="column" marginBottom={isEditing ? 1 : 0}>
+              {isEditing ? (
+                <>
+                  {/* Header line: original name + arrow */}
+                  <Box flexDirection="row" alignItems="center">
+                    <Text color={theme.accent} bold>
+                      ▸ {skill.name} →
+                    </Text>
+                  </Box>
+                  {/* The bordered input box — clearly shows where to type */}
+                  <Box
+                    marginLeft={2}
+                    paddingX={1}
+                    width={40}
+                    borderStyle="round"
+                    borderColor={theme.accent}
+                    backgroundColor={theme.panel}
+                  >
+                    <TextInput
+                      value={names[i]}
+                      onChange={(v) =>
+                        setNames((prev) => {
+                          const next = [...prev];
+                          next[i] = v;
+                          return next;
+                        })
+                      }
+                      showCursor
+                    />
+                  </Box>
+                </>
               ) : (
-                <Text color={focused ? theme.accent : theme.text} bold={focused}>
-                  {names[i] || skill.name}
-                </Text>
+                /* Non-editing row: single compact line */
+                <Box flexDirection="row" alignItems="center">
+                  <Text color={focused ? theme.accent : theme.textMuted}>
+                    {focused ? "▸" : " "}
+                  </Text>
+                  <Text color={theme.text} dimColor={!focused}>
+                    {" "}
+                    {skill.name}
+                  </Text>
+                  <Text color={theme.textMuted}> → </Text>
+                  <Text color={focused ? theme.accent : theme.text} bold={focused}>
+                    {names[i] || skill.name}
+                  </Text>
+                </Box>
               )}
             </Box>
           );
         })}
 
         <Box marginTop={1}>
-          <Text dimColor>
-            {editing ? "输入名称 · Enter 确认本项" : "选中一项开始输入（字母/数字/-）"}
+          <Text dimColor color={theme.textMuted}>
+            {editing
+              ? "输入名称 · Enter 确认本项 · Esc 取消编辑"
+              : "选中一项按任意键开始输入（字母/数字/-）· Enter 确认全部"}
           </Text>
         </Box>
       </Box>
