@@ -3,7 +3,7 @@
 // constant so the bundled CLI has no runtime font-file dependency.
 //
 // Two independent horizontal gradients, pure linear by column index:
-//   "SKILL" (cols 0-29):   dark gray → white (灰白渐变, 从左到右慢慢变浅)
+//   "SKILL" (cols 0-34):   dark gray → white (灰白渐变, 从左到右慢慢变浅)
 //   "TUI"   (cols 39-59):  dark brown → bright amber (棕黄渐变)
 
 import { Box, Text } from "ink";
@@ -19,7 +19,7 @@ const ART =
   "╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝       ╚═╝    ╚═════╝ ╚═╝\n" +
   "                                                            ";
 
-const SKILL_END = 29;
+const SKILL_END = 34;
 const TUI_START = 39;
 const WIDTH = 60;
 
