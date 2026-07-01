@@ -2,12 +2,12 @@
 // The art is pre-generated (via figlet, at build time) and embedded as a
 // constant so the bundled CLI has no runtime font-file dependency.
 //
-// Split into left/right halves for the dual-tone opencode-style look:
-// left half = theme.textMuted, right half = theme.accent + bold.
+// Two independent horizontal gradients, pure linear by column index:
+//   "SKILL" (cols 0-29):   dark gray → white (灰白渐变, 从左到右慢慢变浅)
+//   "TUI"   (cols 39-59):  dark brown → bright amber (棕黄渐变)
 
 import { Box, Text } from "ink";
 import { memo } from "react";
-import { theme } from "../theme.js";
 
 // figlet.textSync("SKILL TUI", { font: "ANSI Shadow" })
 const ART =
@@ -19,43 +19,56 @@ const ART =
   "╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝       ╚═╝    ╚═════╝ ╚═╝\n" +
   "                                                            ";
 
-// Split column: "SKILL" ends around col 28, "TUI" starts ~41. 38 sits in the
-// gap so the left half is the brand word, the right half is the product type.
-const SPLIT_COL = 38;
+const SKILL_END = 29;
+const TUI_START = 39;
+const WIDTH = 60;
 
-function buildLogo(): { left: string[]; right: string[] } {
-  const lines = ART.split("\n").filter((l) => l.length > 0);
-  const width = Math.max(...lines.map((l) => l.length));
-  const left: string[] = [];
-  const right: string[] = [];
-  for (const line of lines) {
-    const padded = line.padEnd(width, " ");
-    left.push(padded.slice(0, SPLIT_COL));
-    right.push(padded.slice(SPLIT_COL));
+function lerp(a: number, b: number, t: number): number {
+  return Math.round(a + (b - a) * t);
+}
+function toHex(n: number): string {
+  return n.toString(16).padStart(2, "0");
+}
+function grad(
+  from: [number, number, number],
+  to: [number, number, number],
+  t: number,
+): string {
+  return `#${toHex(lerp(from[0], to[0], t))}${toHex(lerp(from[1], to[1], t))}${toHex(lerp(from[2], to[2], t))}`;
+}
+
+// SKILL gradient endpoints
+const SKILL_FROM: [number, number, number] = [50, 50, 58]; // #32323a dark gray
+const SKILL_TO: [number, number, number] = [235, 235, 240]; // #ebebf0 near white
+
+// TUI gradient endpoints
+const TUI_FROM: [number, number, number] = [74, 53, 32]; // #4a3520 dark brown
+const TUI_TO: [number, number, number] = [245, 166, 35]; // #f5a623 bright amber
+
+function colorFor(col: number): string {
+  if (col <= SKILL_END) {
+    return grad(SKILL_FROM, SKILL_TO, col / SKILL_END);
   }
-  return { left, right };
+  if (col >= TUI_START) {
+    return grad(TUI_FROM, TUI_TO, (col - TUI_START) / (WIDTH - 1 - TUI_START));
+  }
+  // gap between SKILL and TUI: blend from SKILL_TO → TUI_FROM
+  return grad(SKILL_TO, TUI_FROM, (col - SKILL_END) / (TUI_START - SKILL_END));
 }
 
 export const Logo = memo(function Logo() {
-  const { left, right } = buildLogo();
+  const lines = ART.split("\n").filter((l) => l.length > 0);
   return (
     <Box flexDirection="column" alignItems="center">
-      <Box flexDirection="row">
-        <Box flexDirection="column">
-          {left.map((line, i) => (
-            <Text key={i} color={theme.textMuted}>
-              {line}
+      {lines.map((line, row) => (
+        <Box key={row} flexDirection="row">
+          {line.split("").map((ch, col) => (
+            <Text key={col} color={colorFor(col)} bold>
+              {ch}
             </Text>
           ))}
         </Box>
-        <Box flexDirection="column">
-          {right.map((line, i) => (
-            <Text key={i} color={theme.accent} bold>
-              {line}
-            </Text>
-          ))}
-        </Box>
-      </Box>
+      ))}
     </Box>
   );
 });
