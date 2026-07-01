@@ -14,7 +14,8 @@ export type AgentId =
   | "codex"
   | "cursor"
   | "zcode"
-  | "gemini"
+  | "openclaw"
+  | "hermes"
   | "opencode";
 
 export type AgentStatus = "installed" | "configured" | "missing";

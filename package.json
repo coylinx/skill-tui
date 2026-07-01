@@ -1,7 +1,7 @@
 {
   "name": "skill-tui",
-  "version": "0.2.1",
-  "description": "Terminal UI for importing Skills (SKILL.md) into AI coding agents: Claude Code, Codex, Cursor, ZCode, Gemini CLI, OpenCode.",
+  "version": "0.2.2",
+  "description": "Terminal UI for importing Skills (SKILL.md) into AI coding agents: Claude Code, Codex, Cursor, ZCode, OpenClaw, Hermes, OpenCode.",
   "type": "module",
   "license": "MIT",
   "bin": {

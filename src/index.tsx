@@ -42,7 +42,7 @@ function printHelp(): void {
   console.log(`skill — Skill installer TUI
 
 Install Skills (SKILL.md) into AI coding agents from any git repo.
-Supports: Claude Code, Codex, Cursor, ZCode, Gemini CLI, OpenCode.
+Supports: Claude Code, Codex, Cursor, ZCode, OpenClaw, Hermes, OpenCode.
 
 Usage:
   skill [git-url] [options]

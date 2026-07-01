@@ -5,7 +5,7 @@ import { Box, Text } from "ink";
 import { Logo } from "./logo.js";
 
 const SUBTITLE =
-  "Skill installer for Claude Code · Codex · Cursor · ZCode · Gemini · OpenCode";
+  "Skill installer for Claude Code · Codex · Cursor · ZCode · OpenClaw · Hermes · OpenCode";
 
 export function Title() {
   return (

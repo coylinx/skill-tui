@@ -3,8 +3,10 @@
 //   configured — config/skills dir exists but no executable (warning)
 //   missing    — neither (danger); still selectable with a warning.
 //
-// All agents share the SKILL.md format; the only difference is where the
-// skill directory is copied and whether extra wiring is needed (Gemini/OpenCode).
+// All agents are Tier-1: pure directory copy to <skills>/<name>/SKILL.md.
+// OpenClaw discovers from ~/.openclaw/skills/ and ~/.agents/skills/.
+// Hermes uses ~/.hermes/skills/ (with optional <category>/ nesting).
+// OpenCode also auto-discovers ~/.claude/skills/ and ~/.agents/skills/.
 
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -18,8 +20,8 @@ export interface AgentInfo {
   exe: string; // "" means detect by config dir only (e.g. Cursor GUI app)
   skillsDir: string;
   status: AgentStatus;
-  /** Extra wiring note shown next to the path, e.g. "(+GEMINI.md)". */
-  wiring?: string;
+  /** Note shown next to the path if the agent has extra discovery paths. */
+  note?: string;
 }
 
 const DEFS: Omit<AgentInfo, "status">[] = [
@@ -27,7 +29,8 @@ const DEFS: Omit<AgentInfo, "status">[] = [
   { id: "codex", label: "Codex", exe: "codex", skillsDir: agentSkillsDirs.codex },
   { id: "zcode", label: "ZCode", exe: "zcode", skillsDir: agentSkillsDirs.zcode },
   { id: "cursor", label: "Cursor", exe: "cursor", skillsDir: agentSkillsDirs.cursor },
-  { id: "gemini", label: "Gemini CLI", exe: "gemini", skillsDir: agentSkillsDirs.gemini, wiring: "(+GEMINI.md)" },
+  { id: "openclaw", label: "OpenClaw", exe: "openclaw", skillsDir: agentSkillsDirs.openclaw },
+  { id: "hermes", label: "Hermes", exe: "hermes", skillsDir: agentSkillsDirs.hermes },
   { id: "opencode", label: "OpenCode", exe: "opencode", skillsDir: agentSkillsDirs.opencode },
 ];
 

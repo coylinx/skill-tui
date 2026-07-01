@@ -21,13 +21,21 @@ export const historyFile = path.join(dataRoot, "history.json");
 /** Backup index recording metadata for restore. */
 export const backupIndexFile = path.join(backupDir, "index.json");
 
-/** Per-agent skill directories (global level). */
+/** Per-agent skill directories (global level).
+ *  All agents are Tier-1: copy <skill>/ to <skillsDir>/<name>/ and it works.
+ *  OpenClaw discovers from ~/.openclaw/skills/ and ~/.agents/skills/.
+ *  Hermes uses ~/.hermes/skills/ (with optional <category>/ nesting).
+ *  OpenCode also recognizes ~/.claude/skills/ and ~/.agents/skills/ in addition
+ *  to its own ~/.config/opencode/skills/.
+ *  ~/.agents/skills/ is a cross-agent alias recognized by OpenClaw, OpenCode, and Codex.
+ */
 export const agentSkillsDirs: Record<string, string> = {
   claude: path.join(home, ".claude", "skills"),
   codex: path.join(home, ".codex", "skills"),
   cursor: path.join(home, ".cursor", "skills"),
   zcode: path.join(home, ".zcode", "skills"),
-  gemini: path.join(home, ".gemini", "skills"),
+  openclaw: path.join(home, ".openclaw", "skills"),
+  hermes: path.join(home, ".hermes", "skills"),
   opencode: path.join(home, ".config", "opencode", "skills"),
 };
 

@@ -47,12 +47,13 @@ describe("agent detection", () => {
     expect(deriveStatus(false, false, false)).toBe("missing");
   });
 
-  it("allAgentIds lists the six supported agents", () => {
+  it("allAgentIds lists the seven supported agents", () => {
     expect(allAgentIds().sort()).toEqual([
       "claude",
       "codex",
       "cursor",
-      "gemini",
+      "hermes",
+      "openclaw",
       "opencode",
       "zcode",
     ]);

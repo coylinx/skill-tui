@@ -12,10 +12,11 @@ Enter a Skill repo's git URL, pick which skills to install, rename their install
 | Codex | `~/.codex/skills/<name>/` | `codex` on PATH |
 | Cursor | `~/.cursor/skills/<name>/` | config dir |
 | ZCode | `~/.zcode/skills/<name>/` | `zcode` on PATH |
-| Gemini CLI | `~/.gemini/skills/<name>/` + `GEMINI.md` `@`-import | `gemini` on PATH |
+| OpenClaw | `~/.openclaw/skills/<name>/` | `openclaw` on PATH |
+| Hermes | `~/.hermes/skills/<name>/` | `hermes` on PATH |
 | OpenCode | `~/.config/opencode/skills/<name>/` | `opencode` on PATH |
 
-All agents share the same Skill format: a directory containing a `SKILL.md` with YAML frontmatter (`name`, `description`). The **install folder name** becomes the `/command` name in Claude Code / Codex — you can customize it during import.
+All agents share the same Skill format: a directory containing a `SKILL.md` with YAML frontmatter (`name`, `description`). The **install folder name** becomes the `/command` name — you can customize it during import.
 
 ## Install
 
@@ -67,14 +68,21 @@ skill --version
 
 Amber-orange accent (`#f5a623`) on a dark background, with a dual-tone block-art `SKILL TUI` title (ANSI Shadow style).
 
-## Development
+---
+
+## For Developers
+
+### Build from source
 
 ```sh
+git clone https://github.com/your-username/skill-tui.git
+cd skill-tui
 npm install        # install deps
 npm run dev        # run via tsx (src/index.tsx)
 npm test           # run vitest suite
 npm run typecheck  # tsc --noEmit
 npm run build      # tsup → dist/index.js
+npm link           # make `skill` available globally for testing
 ```
 
 ### Tech stack
@@ -84,37 +92,72 @@ npm run build      # tsup → dist/index.js
 - **gray-matter** — SKILL.md frontmatter parsing
 - **tsup** — bundling to a single-file CLI
 
-### Project layout
+### Architecture
+
+The app is a React state machine (Ink) that switches between 8 screens, backed by pure-logic core modules that have no UI dependencies — making the core fully testable.
 
 ```
 src/
-├── index.tsx          # CLI entry (the `skill` command)
-├── app.tsx            # state machine wiring screens together
-├── theme.ts           # color tokens (amber-orange)
-├── types.ts           # shared types
-├── components/        # screens + reusable UI
-│   ├── screen-frame.tsx  # full-screen vertical centering
-│   ├── title.tsx, logo.tsx, footer-hint.tsx
-│   ├── url-input.tsx, cloning.tsx
-│   ├── checkbox-list.tsx, skill-list.tsx
-│   ├── naming.tsx        # rename install folders
-│   ├── agent-select.tsx
-│   ├── preview.tsx, importing.tsx, progress-bar.tsx
-│   └── result.tsx
-└── core/              # logic (no UI)
-    ├── repo.ts        # git clone / cache
-    ├── cache.ts       # 2-hour cache auto-prune
-    ├── discover.ts    # find SKILL.md in a repo
-    ├── frontmatter.ts # parse SKILL.md
-    ├── agents.ts      # agent registry + three-state detection
-    ├── detect.ts      # executable-on-PATH probe
-    ├── importer.ts    # plan() + importTask() with backup
-    ├── backup.ts      # backup + restore
-    ├── history.ts     # URL history
-    └── paths.ts       # cross-platform paths
+├── index.tsx              # CLI entry point (the `skill` command)
+│                          #   arg parsing, alternate-screen, error handling
+├── app.tsx                # state machine — wires screens together
+├── theme.ts               # color tokens (amber-orange palette)
+├── types.ts               # shared types (Skill, AgentId, Screen, ImportTask…)
+│
+├── components/            # screens + reusable UI
+│   ├── screen-frame.tsx   #   full-screen vertical centering wrapper
+│   ├── title.tsx          #   logo + subtitle
+│   ├── logo.tsx           #   block-art "SKILL TUI" with gradient
+│   ├── footer-hint.tsx    #   bottom keybinding bar
+│   ├── url-input.tsx      #   ① Git URL input + history recall
+│   ├── cloning.tsx        #   ② clone progress / error
+│   ├── checkbox-list.tsx  #   reusable multi-select list
+│   ├── skill-list.tsx     #   ③ skill discovery + selection
+│   ├── naming.tsx         #   ④ rename install folders
+│   ├── agent-select.tsx   #   ⑤ agent selection + 3-state detection
+│   ├── preview.tsx        #   ⑥ confirmation gate (plan before write)
+│   ├── importing.tsx      #   ⑦ concurrent copy + progress bar
+│   ├── progress-bar.tsx   #   text progress bar widget
+│   ├── spinner.tsx        #   spinner wrapper
+│   └── result.tsx         #   ⑧ summary + restore backup
+│
+└── core/                  # logic (no UI, fully testable)
+    ├── repo.ts            #   git clone / cache / pull
+    ├── cache.ts           #   2-hour cache auto-prune
+    ├── discover.ts        #   find SKILL.md in a repo (3 strategies)
+    ├── frontmatter.ts     #   parse SKILL.md via gray-matter
+    ├── agents.ts          #   agent registry + 3-state detection
+    ├── detect.ts          #   executable-on-PATH probe (which/where)
+    ├── importer.ts        #   plan() + importTask() with backup
+    ├── backup.ts          #   backup + restore
+    ├── history.ts         #   URL history persistence
+    └── paths.ts           #   cross-platform paths (~/.skill-tui/, agent dirs)
 ```
 
+### Key design decisions
+
+- **All agents are Tier-1**: pure directory copy, no config-file wiring. Gemini CLI's `GEMINI.md` @-import turned out to be unnecessary (native discovery); this was verified during research.
+- **Pre-rendered logo**: the figlet ASCII art is embedded as a string constant — no runtime font-file dependency, smaller bundle.
+- **Safety-first imports**: `plan()` is a pure function (no writes) that both the preview screen and `--dry-run` reuse. `importTask()` only runs after explicit confirmation.
+- **Three-state detection**: `installed` (exe on PATH) / `configured` (config dir exists but no exe) / `missing` (neither) — more accurate than just checking for a config directory.
+- **`~/.agents/skills/`**: cross-agent alias path recognized by OpenClaw, OpenCode, and Codex. Future feature: "install once, all agents use it."
+
+### Testing
+
+```sh
+npm test           # 35+ tests via vitest + ink-testing-library
+```
+
+Tests cover: skill discovery (3 repo layouts), frontmatter parsing, agent detection logic, importer plan/fresh/skip/overwrite/backup/restore, preview screen rendering, naming screen interaction, and a full e2e flow with a cached real repo.
+
 ## Changelog
+
+### 0.2.2
+- Replaced Antigravity with OpenClaw and Hermes (7 supported agents)
+- Removed Gemini CLI (discontinued by Google)
+
+### 0.2.1
+- UI polish
 
 ### 0.2.0
 - Rename install folders: customize the `/command` name per skill before import
@@ -127,7 +170,7 @@ src/
 - Import preview and progress show the renamed folder, not the original
 
 ### 0.1.0
-- Initial release: URL input, clone, skill discovery, agent detection, preview, import with backup, result summary
+- Initial release
 
 ## License
 

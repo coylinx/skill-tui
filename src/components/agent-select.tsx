@@ -67,7 +67,7 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
     return {
       id: a.id,
       label: `${a.label}  ${st.ch} ${st.text}`,
-      hint: `→ ${path}${a.wiring ?? ""}`,
+      hint: `→ ${path}${a.note ?? ""}`,
     };
   });
 

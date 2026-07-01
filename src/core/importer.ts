@@ -1,19 +1,19 @@
-// Importer: plan (preview) + execute (copy with backup & wiring).
+// Importer: plan (preview) + execute (copy with backup).
 //
 // plan()  — pure, no writes. Computes for each task whether the target
 //           exists and what action will be taken. Drives the preview screen
 //           and is reused by --dry-run.
 //
 // importTask() — performs the copy. For overwrite mode it backs up the
-//           existing dir first (unless noBackup). Handles Gemini's GEMINI.md
-//           @-import wiring and OpenCode's optional config.
+//           existing dir first (unless noBackup). All agents are Tier-1:
+//           pure directory copy, no extra wiring needed.
 
-import { existsSync, rmSync, cpSync, mkdirSync, readFileSync, appendFileSync } from "node:fs";
+import { existsSync, rmSync, cpSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { agentSkillsDirs, skillTargetPath } from "./paths.js";
+import { skillTargetPath } from "./paths.js";
 import { backupExisting } from "./backup.js";
 import { parseSkillFile } from "./frontmatter.js";
-import type { AgentId, ImportResult, ImportTask, OverwriteMode, PlanItem } from "../types.js";
+import type { ImportResult, ImportTask, OverwriteMode, PlanItem } from "../types.js";
 
 const SKIP_DIRS = new Set([".git", "node_modules"]);
 
@@ -82,7 +82,6 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
   if (!exists) {
     try {
       copySkillDir(skill.dir, targetPath);
-      wireAgent(agent, skill.name);
       if (!validateTarget(targetPath)) {
         return {
           status: "failed",
@@ -129,7 +128,6 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
   try {
     rmSync(targetPath, { recursive: true, force: true });
     copySkillDir(skill.dir, targetPath);
-    wireAgent(agent, skill.name);
     if (!validateTarget(targetPath)) {
       return {
         status: "failed",
@@ -151,33 +149,6 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
   }
 }
 
-/** Per-agent wiring beyond the copy (Gemini @-import, OpenCode config). */
-function wireAgent(agent: AgentId, skillName: string): void {
-  if (agent === "gemini") {
-    wireGemini(skillName);
-  }
-  // OpenCode: copy-only by default; writing opencode.json is intentionally
-  // avoided to keep user config untouched. Skills under ~/.config/opencode/skills
-  // are picked up natively.
-}
-
-const GEMINI_MD = path.join(path.dirname(agentSkillsDirs.gemini), "GEMINI.md");
-const GEMINI_IMPORT = (name: string) => `@./skills/${name}/SKILL.md`;
-
-function wireGemini(skillName: string): void {
-  const importLine = GEMINI_IMPORT(skillName);
-  let existing = "";
-  if (existsSync(GEMINI_MD)) {
-    existing = readFileSync(GEMINI_MD, "utf8");
-  }
-  if (existing.includes(importLine)) return; // already wired
-  const prefix = existing && !existing.endsWith("\n") ? "\n" : "";
-  mkdirSync(path.dirname(GEMINI_MD), { recursive: true });
-  appendFileSync(GEMINI_MD, `${prefix}${importLine}\n`, "utf8");
-}
-
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
-
-export { GEMINI_MD, GEMINI_IMPORT };
