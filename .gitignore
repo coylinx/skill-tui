@@ -8,3 +8,4 @@ coverage/
 .idea/
 .vscode/
 plan.md
+package-lock.json
