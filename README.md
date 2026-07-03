@@ -1,5 +1,7 @@
 # skilltui — Skill Installer TUI
 
+[![CI](https://github.com/coylin-zy/skill-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/coylin-zy/skill-tui/actions/workflows/ci.yml)
+
 A terminal UI for importing [Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) (`SKILL.md`) into AI coding agents from any git repository.
 
 Enter a Skill repo's git URL, pick which skills to install, rename their install folders, choose target agents, and `skilltui` copies them into the right place — with a preview-before-write confirmation gate and automatic backups before overwrites.
