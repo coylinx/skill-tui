@@ -1,6 +1,6 @@
 // Screen ①: Git URL input with history recall (↑/↓) and a bordered field.
 // Enter → onSubmit(url); Esc → onExit. Supports a pre-filled initial value
-// (e.g. when launched as `skill <url>`).
+// (e.g. when launched as `skilltui <url>`).
 
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";

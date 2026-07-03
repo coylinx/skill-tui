@@ -1,10 +1,10 @@
-// CLI entry point. Published as the `skill` command (npm package `skill-tui`).
+// CLI entry point. Published as the `skilltui` command (npm package `skill-tui`).
 // Usage:
-//   skill                    → interactive flow
-//   skill <git-url>          → skip URL input, go straight to clone
-//   skill --dry-run [url]    → stop at the preview screen, no writes
-//   skill --overwrite [url]  → overwrite existing skills (with backup)
-//   skill --no-backup [url]  → skip backup on overwrite (needs confirm)
+//   skilltui                    → interactive flow
+//   skilltui <git-url>          → skip URL input, go straight to clone
+//   skilltui --dry-run [url]    → stop at the preview screen, no writes
+//   skilltui --overwrite [url]  → overwrite existing skills (with backup)
+//   skilltui --no-backup [url]  → skip backup on overwrite (needs confirm)
 
 import { render } from "ink";
 import { readFileSync } from "node:fs";
@@ -39,13 +39,13 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function printHelp(): void {
-  console.log(`skill — Skill installer TUI
+  console.log(`skilltui — Skill installer TUI
 
 Install Skills (SKILL.md) into AI coding agents from any git repo.
 Supports: Claude Code, Codex, Cursor, ZCode, OpenClaw, Hermes, OpenCode.
 
 Usage:
-  skill [git-url] [options]
+  skilltui [git-url] [options]
 
 Options:
   --dry-run      Preview what would be written, then exit (no changes)
@@ -55,9 +55,9 @@ Options:
   -v, --version  Show version
 
 Examples:
-  skill
-  skill https://github.com/obra/superpowers.git
-  skill --dry-run https://github.com/obra/superpowers.git
+  skilltui
+  skilltui https://github.com/obra/superpowers.git
+  skilltui --dry-run https://github.com/obra/superpowers.git
 `);
 }
 
@@ -67,9 +67,9 @@ function printVersion(): void {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const pkgPath = path.join(here, "..", "package.json");
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-    console.log(`skill ${pkg.version}`);
+    console.log(`skilltui ${pkg.version}`);
   } catch {
-    console.log("skill (version unknown)");
+    console.log("skilltui (version unknown)");
   }
 }
 
@@ -110,7 +110,7 @@ function main(): void {
     instance.unmount();
     leaveAltScreen();
     console.error(
-      "\nskill 遇到错误：",
+      "\nskilltui 遇到错误：",
       err instanceof Error ? err.message : String(err),
     );
     process.exit(1);

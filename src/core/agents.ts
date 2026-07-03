@@ -4,8 +4,11 @@
 //   missing    — neither (danger); still selectable with a warning.
 //
 // All agents are Tier-1: pure directory copy to <skills>/<name>/SKILL.md.
+// Env-aware paths (handled in paths.ts, v0.3.0):
+//   Codex     — respects CODEX_HOME
+//   Hermes    — respects HERMES_HOME; Windows uses %LOCALAPPDATA%\hermes
+//   OpenCode  — respects OPENCODE_CONFIG_DIR and XDG_CONFIG_HOME
 // OpenClaw discovers from ~/.openclaw/skills/ and ~/.agents/skills/.
-// Hermes uses ~/.hermes/skills/ (with optional <category>/ nesting).
 // OpenCode also auto-discovers ~/.claude/skills/ and ~/.agents/skills/.
 
 import { existsSync } from "node:fs";

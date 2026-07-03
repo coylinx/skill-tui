@@ -1,5 +1,12 @@
 // Cross-platform path helpers.
 // ~/.skill-tui/ is our own data root (cache, backups, history, index).
+//
+// Agent skill paths are env-aware (v0.3.0):
+//   Codex:     respects CODEX_HOME
+//   Hermes:    respects HERMES_HOME; Windows uses %LOCALAPPDATA%\hermes
+//   OpenCode:  respects OPENCODE_CONFIG_DIR and XDG_CONFIG_HOME
+// All other agents (Claude Code, Cursor, ZCode, OpenClaw) use ~/.<name>/skills/
+// identically across macOS / Linux / Windows.
 
 import os from "node:os";
 import path from "node:path";
@@ -21,22 +28,46 @@ export const historyFile = path.join(dataRoot, "history.json");
 /** Backup index recording metadata for restore. */
 export const backupIndexFile = path.join(backupDir, "index.json");
 
+// --- Env-aware agent root resolvers (exported for testing) ---
+
+/** Codex: respects CODEX_HOME env var. */
+export function codexRoot(): string {
+  const env = process.env.CODEX_HOME;
+  return env && env.trim() ? env : path.join(home, ".codex");
+}
+
+/** Hermes: respects HERMES_HOME; Windows uses %LOCALAPPDATA%\hermes. */
+export function hermesRoot(): string {
+  const env = process.env.HERMES_HOME;
+  if (env && env.trim()) return env;
+  if (process.platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA || path.join(home, "AppData", "Local");
+    return path.join(localAppData, "hermes");
+  }
+  return path.join(home, ".hermes");
+}
+
+/** OpenCode: respects OPENCODE_CONFIG_DIR (highest priority), then XDG_CONFIG_HOME,
+ *  then ~/.config/opencode. Uses `||` (not `??`) so empty-string XDG falls back. */
+export function opencodeSkillsDir(): string {
+  const override = process.env.OPENCODE_CONFIG_DIR;
+  if (override && override.trim()) return path.join(override, "skills");
+  const xdg = process.env.XDG_CONFIG_HOME;
+  const configRoot = xdg && xdg.trim() ? xdg : path.join(home, ".config");
+  return path.join(configRoot, "opencode", "skills");
+}
+
 /** Per-agent skill directories (global level).
  *  All agents are Tier-1: copy <skill>/ to <skillsDir>/<name>/ and it works.
- *  OpenClaw discovers from ~/.openclaw/skills/ and ~/.agents/skills/.
- *  Hermes uses ~/.hermes/skills/ (with optional <category>/ nesting).
- *  OpenCode also recognizes ~/.claude/skills/ and ~/.agents/skills/ in addition
- *  to its own ~/.config/opencode/skills/.
- *  ~/.agents/skills/ is a cross-agent alias recognized by OpenClaw, OpenCode, and Codex.
- */
+ *  Paths are computed at module load with env-var awareness. */
 export const agentSkillsDirs: Record<string, string> = {
   claude: path.join(home, ".claude", "skills"),
-  codex: path.join(home, ".codex", "skills"),
+  codex: path.join(codexRoot(), "skills"),
   cursor: path.join(home, ".cursor", "skills"),
   zcode: path.join(home, ".zcode", "skills"),
   openclaw: path.join(home, ".openclaw", "skills"),
-  hermes: path.join(home, ".hermes", "skills"),
-  opencode: path.join(home, ".config", "opencode", "skills"),
+  hermes: path.join(hermesRoot(), "skills"),
+  opencode: opencodeSkillsDir(),
 };
 
 /** Resolve a skill's target directory for a given agent. */

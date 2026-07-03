@@ -1,8 +1,8 @@
-# skill — Skill Installer TUI
+# skilltui — Skill Installer TUI
 
 A terminal UI for importing [Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) (`SKILL.md`) into AI coding agents from any git repository.
 
-Enter a Skill repo's git URL, pick which skills to install, rename their install folders, choose target agents, and `skill` copies them into the right place — with a preview-before-write confirmation gate and automatic backups before overwrites.
+Enter a Skill repo's git URL, pick which skills to install, rename their install folders, choose target agents, and `skilltui` copies them into the right place — with a preview-before-write confirmation gate and automatic backups before overwrites.
 
 ## Supported agents
 
@@ -27,7 +27,7 @@ npm install -g skill-tui
 Then run:
 
 ```sh
-skill
+skilltui
 ```
 
 The TUI launches on a clean screen (alternate buffer, like vim/htop) and restores your previous terminal content on exit.
@@ -35,18 +35,18 @@ The TUI launches on a clean screen (alternate buffer, like vim/htop) and restore
 ## Usage
 
 ```sh
-skill                              # interactive: enter a git URL
-skill https://github.com/obra/superpowers.git   # skip URL entry
-skill --dry-run <url>              # preview what would be written, no changes
-skill --overwrite <url>            # overwrite existing skills (backs up first)
-skill --no-backup <url>            # overwrite without backup (confirm required)
-skill --help
-skill --version
+skilltui                              # interactive: enter a git URL
+skilltui https://github.com/obra/superpowers.git   # skip URL entry
+skilltui --dry-run <url>              # preview what would be written, no changes
+skilltui --overwrite <url>            # overwrite existing skills (backs up first)
+skilltui --no-backup <url>            # overwrite without backup (confirm required)
+skilltui --help
+skilltui --version
 ```
 
 ### Flow
 
-1. **URL input** — enter a Skill repo's git address (↑/↓ recalls history). Launched with `skill <url>` to skip this step.
+1. **URL input** — enter a Skill repo's git address (↑/↓ recalls history). Launched with `skilltui <url>` to skip this step.
 2. **Clone** — shallow-cloned to `~/.skill-tui/cache/<hash>/`. Cache is pruned automatically: entries older than **2 hours** are deleted on startup.
 3. **Skill list** — discovered skills with descriptions. **Nothing is pre-selected** — use Space to explicitly opt in, `a` to toggle all.
 4. **Naming** — rename each selected skill's install folder (the `/command` name). ↑/↓ to switch between fields, type directly to edit, Enter to confirm. Names are sanitized to `[a-z0-9-]`.
@@ -82,7 +82,7 @@ npm run dev        # run via tsx (src/index.tsx)
 npm test           # run vitest suite
 npm run typecheck  # tsc --noEmit
 npm run build      # tsup → dist/index.js
-npm link           # make `skill` available globally for testing
+npm link           # make `skilltui` available globally for testing
 ```
 
 ### Tech stack
@@ -98,7 +98,7 @@ The app is a React state machine (Ink) that switches between 8 screens, backed b
 
 ```
 src/
-├── index.tsx              # CLI entry point (the `skill` command)
+├── index.tsx              # CLI entry point (the `skilltui` command)
 │                          #   arg parsing, alternate-screen, error handling
 ├── app.tsx                # state machine — wires screens together
 ├── theme.ts               # color tokens (amber-orange palette)
@@ -151,6 +151,9 @@ npm test           # 35+ tests via vitest + ink-testing-library
 Tests cover: skill discovery (3 repo layouts), frontmatter parsing, agent detection logic, importer plan/fresh/skip/overwrite/backup/restore, preview screen rendering, naming screen interaction, and a full e2e flow with a cached real repo.
 
 ## Changelog
+
+### 0.3.1
+- Rename bin command from `skill` to `skilltui` to avoid conflict with Linux procps-ng `skill` command
 
 ### 0.2.2
 - Replaced Antigravity with OpenClaw and Hermes (7 supported agents)
