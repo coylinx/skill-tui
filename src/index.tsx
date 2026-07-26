@@ -76,7 +76,7 @@ function printVersion(): void {
 function main(): void {
   const { flags, url } = parseArgs(process.argv.slice(2));
 
-  // Prune cached repos older than 7 days before entering the TUI, so disk
+  // Prune cached repos older than 2 hours before entering the TUI, so disk
   // usage from ~/.skill-tui/cache/ stays bounded. Best-effort, non-fatal.
   try {
     pruneCache();

@@ -77,7 +77,7 @@ Amber-orange accent (`#f5a623`) on a dark background, with a dual-tone block-art
 ### Build from source
 
 ```sh
-git clone https://github.com/your-username/skill-tui.git
+git clone https://github.com/coylin-zy/skill-tui.git
 cd skill-tui
 npm install        # install deps
 npm run dev        # run via tsx (src/index.tsx)
@@ -153,6 +153,12 @@ npm test           # 35+ tests via vitest + ink-testing-library
 Tests cover: skill discovery (3 repo layouts), frontmatter parsing, agent detection logic, importer plan/fresh/skip/overwrite/backup/restore, preview screen rendering, naming screen interaction, and a full e2e flow with a cached real repo.
 
 ## Changelog
+
+### 0.3.2
+- Fix: `--overwrite` flag now actually pre-enables overwrite mode on the preview screen (was parsed but ignored)
+- Fix: cloning no longer breaks on Windows when the home path contains spaces (removed `windowsVerbatimArguments`); `git clone` also uses `--` before the URL
+- Fix: Ctrl+C now quits the TUI from any screen (raw mode swallowed SIGINT)
+- Added `repository` / `keywords` / `author` metadata and a `prepublishOnly` guard to package.json
 
 ### 0.3.1
 - Rename bin command from `skill` to `skilltui` to avoid conflict with Linux procps-ng `skill` command

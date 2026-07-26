@@ -2,7 +2,7 @@
 // Phase 1 implements: url → cloning (stub) → (skills placeholder).
 // Later phases extend the switch with skills/agents/preview/importing/result.
 
-import { useInput } from "ink";
+import { useApp, useInput } from "ink";
 import { useEffect, useRef, useState } from "react";
 import { AgentSelect } from "./components/agent-select.js";
 import { Cloning } from "./components/cloning.js";
@@ -76,8 +76,15 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
       });
   }, [screen]);
 
-  // Global Esc returns to URL input from cloning error / skills placeholder.
-  useInput((_input, key) => {
+  // Global keys: Ctrl+C always quits (raw mode swallows SIGINT, so the
+  // signal handler in index.tsx never fires while the TUI is up); Esc
+  // returns to URL input from cloning error / skills placeholder.
+  const { exit } = useApp();
+  useInput((input, key) => {
+    if (key.ctrl && input === "c") {
+      exit();
+      return;
+    }
     if (key.escape && screen.kind !== "url") {
       setScreen({ kind: "url" });
     }
@@ -143,7 +150,7 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
             setScreen({
               kind: "preview",
               tasks,
-              overwrite: false,
+              overwrite: flags.overwrite,
               dryRun: flags.dryRun,
             });
           }}
@@ -164,6 +171,7 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
           tasks={screen.tasks}
           dryRun={screen.dryRun}
           noBackup={flags.noBackup}
+          initialOverwrite={screen.overwrite}
           onConfirm={(overwrite) =>
             setScreen({ kind: "importing", tasks: screen.tasks, overwrite })
           }

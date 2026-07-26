@@ -1,6 +1,6 @@
 // Cache maintenance: prune cloned repos older than the max age.
 // Runs on startup so disk usage from ~/.skill-tui/cache/ stays bounded.
-// Default max age: 7 days.
+// Default max age: 2 hours.
 
 import { existsSync, readdirSync, statSync, rmSync } from "node:fs";
 import path from "node:path";

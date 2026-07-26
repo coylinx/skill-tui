@@ -83,6 +83,37 @@ describe("Preview screen", () => {
     }
   });
 
+  it("starts in overwrite mode when initialOverwrite is set (--overwrite flag)", async () => {
+    const skill = makeSkill("preview-flag-ow-xyz");
+    const target = skillTargetPath("claude", skill.name);
+    mkdirSync(target, { recursive: true });
+    writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
+    try {
+      const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+      let confirmed = null as boolean | null;
+      const { stdin, lastFrame, unmount } = render(
+        <Preview
+          tasks={tasks}
+          dryRun={false}
+          noBackup={false}
+          initialOverwrite={true}
+          onConfirm={(ow) => (confirmed = ow)}
+          onBack={() => {}}
+        />,
+      );
+      await new Promise((r) => setTimeout(r, 20));
+      const frame = lastFrame() ?? "";
+      expect(frame).toMatch(/覆盖\+备份/); // overwrite mode active without pressing o
+      expect(frame).toMatch(/↻/);
+      stdin.write("\r");
+      await new Promise((r) => setTimeout(r, 20));
+      unmount();
+      expect(confirmed).toBe(true);
+    } finally {
+      rmSync(target, { recursive: true, force: true });
+    }
+  });
+
   it("calls onConfirm with overwrite=false on Enter by default", async () => {
     const skill = makeSkill("preview-enter-xyz");
     const tasks: ImportTask[] = [{ skill, agent: "claude" }];

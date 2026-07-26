@@ -21,10 +21,10 @@ function runGit(args: string[], cwd?: string): Promise<void> {
       cwd,
       stdio: ["ignore", "ignore", "pipe"],
       // On Windows, git is typically git.exe on PATH; spawning without a
-      // shell avoids the Node DEP0190 deprecation and is safe here since
-      // args are constructed internally (never user input passed raw).
+      // shell avoids the Node DEP0190 deprecation. Node's default arg
+      // quoting must stay on so paths with spaces (e.g. C:\Users\John Doe)
+      // survive — do not set windowsVerbatimArguments.
       shell: false,
-      windowsVerbatimArguments: process.platform === "win32",
     });
     let stderr = "";
     child.stderr?.on("data", (d) => {
@@ -74,7 +74,8 @@ export async function cloneRepo(url: string): Promise<CloneResult> {
   }
 
   try {
-    await runGit(["clone", "--depth", "1", url, dir]);
+    // `--` keeps a URL that starts with `-` from being read as a git option.
+    await runGit(["clone", "--depth", "1", "--", url, dir]);
   } catch (err) {
     throw new Error(
       `克隆失败：${err instanceof Error ? err.message : String(err)}\n` +

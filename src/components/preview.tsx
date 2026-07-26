@@ -17,6 +17,8 @@ interface Props {
   tasks: ImportTask[];
   dryRun: boolean;
   noBackup: boolean;
+  /** Initial overwrite mode (from the --overwrite flag); `o` still toggles. */
+  initialOverwrite?: boolean;
   onConfirm: (overwrite: boolean) => void;
   onBack: () => void;
 }
@@ -27,9 +29,9 @@ const HINTS = (dryRun: boolean): Hint[] => [
   { key: "Esc", label: "返回" },
 ];
 
-export function Preview({ tasks, dryRun, noBackup, onConfirm, onBack }: Props) {
+export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onConfirm, onBack }: Props) {
   const { exit } = useApp();
-  const [overwrite, setOverwrite] = useState(false);
+  const [overwrite, setOverwrite] = useState(initialOverwrite);
 
   const items: PlanItem[] = useMemo(
     () => plan(tasks, overwrite, noBackup),
