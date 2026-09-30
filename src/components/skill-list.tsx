@@ -58,7 +58,7 @@ export function SkillList({ url, skills, onConfirm, onBack }: Props) {
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={3} />
       <CheckboxList
         title={`发现 ${skills.length} 个 Skill — 来自 ${shortUrl(url)}`}
         items={items}

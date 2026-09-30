@@ -1,7 +1,6 @@
 // Verify the Title renders without crashing and contains "SKILL".
 import { describe, it, expect } from "vitest";
 import { render } from "ink-testing-library";
-import React from "react";
 import { Title } from "../src/components/title.js";
 
 describe("Title (Phase 0 smoke test)", () => {

@@ -70,10 +70,11 @@ export function CheckboxList({
         paddingY={1}
         minWidth={60}
       >
-        <Box marginBottom={1}>
-          <Text color={theme.accent} bold>
-            {title}
-          </Text>
+        <Box marginBottom={1} justifyContent="space-between">
+          <Text color={theme.accent} bold>{title}</Text>
+          {items.length > 0 ? (
+            <Text color={theme.textMuted}>已选 {selected.size}/{items.length}</Text>
+          ) : null}
         </Box>
 
         {items.length === 0 ? (
@@ -83,20 +84,13 @@ export function CheckboxList({
             const checked = selected.has(item.id);
             const isCursor = i === cursor;
             return (
-              <Box key={item.id} flexDirection="row">
-                <Text color={checked ? theme.success : theme.textMuted}>
-                  {checked ? "◉" : "◯"}
+              <Box key={item.id} flexDirection="row" backgroundColor={isCursor ? theme.panelRaised : undefined}>
+                <Text color={isCursor ? theme.accent : theme.textMuted}>{isCursor ? "▸" : " "}</Text>
+                <Text color={checked ? theme.success : theme.textMuted}>{checked ? " ◉" : " ◯"}</Text>
+                <Text color={isCursor ? theme.text : theme.textMuted} bold={isCursor}>
+                  {"  "}{item.label}
                 </Text>
-                <Text color={isCursor ? theme.accent : theme.text} bold={isCursor}>
-                  {"  "}
-                  {item.label}
-                </Text>
-                {item.hint ? (
-                  <Text dimColor color={theme.textMuted}>
-                    {"  "}
-                    {item.hint}
-                  </Text>
-                ) : null}
+                {item.hint ? <Text dimColor color={theme.textSubtle}>{"  "}{item.hint}</Text> : null}
               </Box>
             );
           })

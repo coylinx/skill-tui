@@ -37,13 +37,14 @@ function grad(
   return `#${toHex(lerp(from[0], to[0], t))}${toHex(lerp(from[1], to[1], t))}${toHex(lerp(from[2], to[2], t))}`;
 }
 
-// SKILL gradient endpoints
-const SKILL_FROM: [number, number, number] = [50, 50, 58]; // #32323a dark gray
-const SKILL_TO: [number, number, number] = [235, 235, 240]; // #ebebf0 near white
+// SKILL gradient endpoints. Keep the left half quiet so the warm/mint
+// accents remain the visual signal instead of turning the logo into noise.
+const SKILL_FROM: [number, number, number] = [64, 78, 101];
+const SKILL_TO: [number, number, number] = [218, 231, 241];
 
 // TUI gradient endpoints
-const TUI_FROM: [number, number, number] = [74, 53, 32]; // #4a3520 dark brown
-const TUI_TO: [number, number, number] = [245, 166, 35]; // #f5a623 bright amber
+const TUI_FROM: [number, number, number] = [49, 102, 96];
+const TUI_TO: [number, number, number] = [255, 180, 84];
 
 function colorFor(col: number): string {
   if (col <= SKILL_END) {

@@ -74,7 +74,7 @@ export function Importing({ tasks, overwrite, noBackup, onComplete }: Props) {
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={7} />
 
       <Box flexDirection="column" alignItems="center" marginBottom={1}>
         <Text color={theme.accent} bold>

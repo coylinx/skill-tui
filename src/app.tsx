@@ -39,8 +39,19 @@ function buildTasks(
   return tasks;
 }
 
-export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlags }) {
-  const [screen, setScreen] = useState<Screen>({ kind: "url" });
+export function App({
+  initialUrl,
+  flags,
+  onDryRun,
+}: {
+  initialUrl?: string;
+  flags: AppFlags;
+  onDryRun?: (report: string) => void;
+}) {
+  const [screen, setScreen] = useState<Screen>(() => {
+    const url = initialUrl?.trim();
+    return url ? { kind: "cloning", url } : { kind: "url" };
+  });
   const [history, setHistory] = useState<string[]>([]);
   const [cloneError, setCloneError] = useState<string | undefined>();
   const [cloneCachePath, setCloneCachePath] = useState<string>("");
@@ -60,32 +71,40 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
   // Drive cloning when we enter that screen.
   useEffect(() => {
     if (screen.kind !== "cloning") return;
+    const controller = new AbortController();
     setCloneError(undefined);
     // Pre-compute the cache path for display.
-    urlHash(screen.url).then((h) => setCloneCachePath(`${cacheDir}/${h}`));
-    cloneRepo(screen.url)
+    urlHash(screen.url).then((h) => {
+      if (!controller.signal.aborted) setCloneCachePath(`${cacheDir}/${h}`);
+    });
+    cloneRepo(screen.url, controller.signal)
       .then(async (res) => {
+        if (controller.signal.aborted) return;
         await saveHistory(screen.url);
+        if (controller.signal.aborted) return;
         const found = discoverSkills(res.dir);
         setSkills(found);
         skillsCtx.current = { repoDir: res.dir, url: screen.url };
         setScreen({ kind: "skills", repoDir: res.dir, url: screen.url });
       })
       .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
         setCloneError(err instanceof Error ? err.message : String(err));
       });
+    return () => controller.abort();
   }, [screen]);
 
   // Global keys: Ctrl+C always quits (raw mode swallows SIGINT, so the
-  // signal handler in index.tsx never fires while the TUI is up); Esc
-  // returns to URL input from cloning error / skills placeholder.
+  // signal handler in index.tsx never fires while the TUI is up). Cloning
+  // owns its Escape behavior here because that screen is presentational;
+  // all other screens provide their own precise back target.
   const { exit } = useApp();
   useInput((input, key) => {
     if (key.ctrl && input === "c") {
       exit();
       return;
     }
-    if (key.escape && screen.kind !== "url") {
+    if (key.escape && screen.kind === "cloning") {
       setScreen({ kind: "url" });
     }
   });
@@ -118,6 +137,7 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
               selected: selectedIds,
             })
           }
+          onBack={() => setScreen({ kind: "url" })}
         />
       );
 
@@ -172,6 +192,7 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
           dryRun={screen.dryRun}
           noBackup={flags.noBackup}
           initialOverwrite={screen.overwrite}
+          onDryRun={onDryRun}
           onConfirm={(overwrite) =>
             setScreen({ kind: "importing", tasks: screen.tasks, overwrite })
           }

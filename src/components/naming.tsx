@@ -77,7 +77,7 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={4} compact />
 
       <Box
         flexDirection="column"

@@ -53,7 +53,7 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
   if (!agents) {
     return (
       <ScreenFrame>
-        <Title />
+        <Title stage={5} />
         <Text dimColor color={theme.textMuted}>
           正在探测已安装的 Agent …
         </Text>
@@ -91,7 +91,7 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={5} />
       <CheckboxList
         title="选择目标 Agent"
         items={items}

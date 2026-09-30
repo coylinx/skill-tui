@@ -74,7 +74,7 @@ export function Result({ summary, onRestart }: Props) {
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={8} />
 
       <Box
         flexDirection="column"

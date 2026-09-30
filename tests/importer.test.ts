@@ -7,24 +7,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { plan, importTask } from "../src/core/importer.js";
-import { backupExisting, restoreBackup, loadBackupIndex } from "../src/core/backup.js";
-import { agentSkillsDirs, skillTargetPath } from "../src/core/paths.js";
-import type { AgentId, ImportTask, Skill } from "../src/types.js";
+import { restoreBackup, loadBackupIndex } from "../src/core/backup.js";
+import { skillTargetPath } from "../src/core/paths.js";
+import type { ImportTask, Skill } from "../src/types.js";
 
-// We test against a temp "agent" by monkeypatching the target path via a
-// custom skill whose dir we control. Because skillTargetPath is keyed by
-// agent id + skill.name and points at the real home dir, we instead drive
-// the importer through the public surface but redirect by using a throwaway
-// skill name and cleaning up under the real ~/.claude/skills.
-//
-// To keep tests hermetic and avoid touching real agent dirs, we exercise the
-// logic by constructing ImportTasks whose skill.dir is a temp source, then
-// assert on plan() output (which is pure) and on a fresh-install into a
-// temp dir by calling copySkillDir indirectly via a controlled path.
-//
-// Since importTask writes to the real agentSkillsDirs, we instead verify the
-// pure plan() thoroughly and validate copy semantics through a temp agent
-// dir by temporarily overriding.
+// The shared test setup redirects CODEX_HOME and SKILL_TUI_HOME to a temp
+// root, so these tests exercise the public API without touching user data.
 
 let tmp: string;
 
@@ -49,7 +37,7 @@ function makeSkill(name: string, desc: string): Skill {
 describe("plan()", () => {
   it("marks absent targets as skip/no-conflict", () => {
     const skill = makeSkill("plan-fresh", "x");
-    const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+    const tasks: ImportTask[] = [{ skill, agent: "codex" }];
     const items = plan(tasks, false, false);
     expect(items).toHaveLength(1);
     expect(items[0].exists).toBe(false);
@@ -59,11 +47,11 @@ describe("plan()", () => {
   it("marks existing targets as skip when overwrite is false", () => {
     const skill = makeSkill("plan-exists", "x");
     // pre-create the target so plan() sees it as existing
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
     try {
-      const items = plan([{ skill, agent: "claude" }], false, false);
+      const items = plan([{ skill, agent: "codex" }], false, false);
       expect(items[0].exists).toBe(true);
       expect(items[0].action).toBe("skip");
     } finally {
@@ -73,11 +61,11 @@ describe("plan()", () => {
 
   it("marks existing targets as overwrite when overwrite is true", () => {
     const skill = makeSkill("plan-ow", "x");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
     try {
-      const items = plan([{ skill, agent: "claude" }], true, false);
+      const items = plan([{ skill, agent: "codex" }], true, false);
       expect(items[0].exists).toBe(true);
       expect(items[0].action).toBe("overwrite");
     } finally {
@@ -89,9 +77,9 @@ describe("plan()", () => {
 describe("importTask() fresh install", () => {
   it("copies a skill into the agent dir and validates", () => {
     const skill = makeSkill("imp-fresh-xyz", "fresh install test");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     try {
-      const res = importTask({ skill, agent: "claude" }, { overwrite: false, noBackup: false });
+      const res = importTask({ skill, agent: "codex" }, { overwrite: false, noBackup: false });
       expect(res.status).toBe("done");
       expect(existsSync(path.join(target, "SKILL.md"))).toBe(true);
     } finally {
@@ -101,11 +89,11 @@ describe("importTask() fresh install", () => {
 
   it("skips when target exists and overwrite is false", () => {
     const skill = makeSkill("imp-skip-xyz", "skip test");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
     try {
-      const res = importTask({ skill, agent: "claude" }, { overwrite: false, noBackup: false });
+      const res = importTask({ skill, agent: "codex" }, { overwrite: false, noBackup: false });
       expect(res.status).toBe("skipped");
       expect(readFileSync(path.join(target, "SKILL.md"), "utf8")).toContain("old");
     } finally {
@@ -113,13 +101,27 @@ describe("importTask() fresh install", () => {
     }
   });
 
+  it("does not leave a partial target when staged validation fails", () => {
+    const skill = makeSkill("imp-invalid-xyz", "invalid test");
+    const target = skillTargetPath("codex", skill.name);
+    rmSync(path.join(skill.dir, "SKILL.md"));
+    try {
+      const res = importTask({ skill, agent: "codex" }, { overwrite: false, noBackup: false });
+      expect(res.status).toBe("failed");
+      expect(res.message).toMatch(/SKILL\.md/);
+      expect(existsSync(target)).toBe(false);
+    } finally {
+      rmSync(target, { recursive: true, force: true });
+    }
+  });
+
   it("overwrites with backup when overwrite is true", () => {
     const skill = makeSkill("imp-ow-xyz", "overwrite test");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold-content\n");
     try {
-      const res = importTask({ skill, agent: "claude" }, { overwrite: true, noBackup: false });
+      const res = importTask({ skill, agent: "codex" }, { overwrite: true, noBackup: false });
       expect(res.status).toBe("done");
       expect(res.action).toBe("overwrite");
       expect(res.backupPath).toBeTruthy();
@@ -132,16 +134,31 @@ describe("importTask() fresh install", () => {
       rmSync(target, { recursive: true, force: true });
     }
   });
+
+  it("keeps the original target when a replacement fails validation", () => {
+    const skill = makeSkill("imp-rollback-xyz", "rollback test");
+    const target = skillTargetPath("codex", skill.name);
+    mkdirSync(target, { recursive: true });
+    writeFileSync(path.join(target, "SKILL.md"), "---\n---\noriginal-content\n");
+    rmSync(path.join(skill.dir, "SKILL.md"));
+    try {
+      const res = importTask({ skill, agent: "codex" }, { overwrite: true, noBackup: true });
+      expect(res.status).toBe("failed");
+      expect(readFileSync(path.join(target, "SKILL.md"), "utf8")).toContain("original-content");
+    } finally {
+      rmSync(target, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("backup + restore", () => {
   it("records a backup in the index and can restore it", () => {
     const skill = makeSkill("imp-restore-xyz", "restore test");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\noriginal\n");
     try {
-      const res = importTask({ skill, agent: "claude" }, { overwrite: true, noBackup: false });
+      const res = importTask({ skill, agent: "codex" }, { overwrite: true, noBackup: false });
       expect(res.backupPath).toBeTruthy();
 
       const records = loadBackupIndex();

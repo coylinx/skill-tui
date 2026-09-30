@@ -4,7 +4,7 @@
 
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { theme } from "../theme.js";
 import { FooterHint, type Hint } from "./footer-hint.js";
 import { ScreenFrame } from "./screen-frame.js";
@@ -26,15 +26,6 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
   const { exit } = useApp();
   const [value, setValue] = useState(initialValue ?? "");
   const [histIndex, setHistIndex] = useState<number>(-1); // -1 = editing live
-
-  // If launched with a URL arg, auto-advance once the history has loaded.
-  useEffect(() => {
-    if (initialValue && initialValue.trim()) {
-      onSubmit(initialValue.trim());
-    }
-    // run once on mount only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function recall(dir: -1 | 1) {
     if (history.length === 0) return;
@@ -72,18 +63,22 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={1} />
 
       <Box flexDirection="column" alignItems="center" marginTop={1}>
-        <Text color={theme.text} bold>
-          输入 Skill 仓库的 Git 地址
+        <Box flexDirection="row" alignItems="center">
+          <Text color={theme.accentWarm} bold>● </Text>
+          <Text color={theme.text} bold>输入 Skill 仓库的 Git 地址</Text>
+        </Box>
+        <Text color={theme.textMuted} dimColor>
+          粘贴 GitHub、GitLab 或任意可访问的 Git 仓库
         </Text>
 
         <Box
           marginTop={1}
           paddingX={1}
           borderStyle="round"
-          borderColor={theme.border}
+          borderColor={theme.borderStrong}
           backgroundColor={theme.panel}
           minWidth={50}
         >
@@ -95,6 +90,14 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
             showCursor
           />
         </Box>
+
+        {history.length > 0 ? (
+          <Box marginTop={1}>
+            <Text color={theme.textSubtle} dimColor>
+              ↑↓ 浏览最近 {history.length} 个仓库
+            </Text>
+          </Box>
+        ) : null}
 
         <FooterHint hints={HINTS} />
       </Box>

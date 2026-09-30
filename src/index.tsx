@@ -90,11 +90,24 @@ function main(): void {
   const stdout = process.stdout;
   stdout.write("\x1b[?1049h\x1b[2J\x1b[3J\x1b[H");
 
-  const instance = render(<App initialUrl={url} flags={flags} />, {
-    exitOnCtrlC: false,
-  });
+  let dryRunReport = "";
+  const instance = render(
+    <App
+      initialUrl={url}
+      flags={flags}
+      onDryRun={(report) => {
+        dryRunReport = report;
+      }}
+    />,
+    {
+      exitOnCtrlC: false,
+    },
+  );
 
+  let altScreenActive = true;
   const leaveAltScreen = (): void => {
+    if (!altScreenActive) return;
+    altScreenActive = false;
     stdout.write("\x1b[?1049l");
   };
   // Restore the screen on any exit path.
@@ -117,6 +130,17 @@ function main(): void {
   };
   process.on("unhandledRejection", onFatal);
   process.on("uncaughtException", onFatal);
+
+  // Normal Ink exits (q, Ctrl+C handled in the app, or dry-run confirmation)
+  // do not terminate the process explicitly. Restore the original terminal
+  // first, then print the dry-run report into the persistent buffer.
+  void instance
+    .waitUntilExit()
+    .then(() => {
+      leaveAltScreen();
+      if (dryRunReport) stdout.write(`\n${dryRunReport}`);
+    })
+    .catch(onFatal);
 }
 
 main();

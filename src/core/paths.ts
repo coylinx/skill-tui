@@ -13,8 +13,11 @@ import path from "node:path";
 
 const home = os.homedir();
 
-/** Root for all skill-tui data: cache, backups, history, index. */
-export const dataRoot = path.join(home, ".skill-tui");
+/** Root for all skill-tui data: cache, backups, history, index.
+ *  SKILL_TUI_HOME is primarily useful for isolated automation and tests. */
+export const dataRoot = process.env.SKILL_TUI_HOME?.trim()
+  ? process.env.SKILL_TUI_HOME
+  : path.join(home, ".skill-tui");
 
 /** Cloned repos live here, keyed by a hash of their URL. */
 export const cacheDir = path.join(dataRoot, "cache");

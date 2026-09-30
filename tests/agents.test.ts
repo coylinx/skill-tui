@@ -10,7 +10,6 @@ import { describe, it, expect } from "vitest";
 import { exeOnPath } from "../src/core/detect.js";
 import { allAgentIds, targetPathFor } from "../src/core/agents.js";
 import { agentSkillsDirs } from "../src/core/paths.js";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import type { AgentStatus } from "../src/types.js";
 

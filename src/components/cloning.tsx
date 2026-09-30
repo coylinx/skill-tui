@@ -17,7 +17,7 @@ interface Props {
 export function Cloning({ url, cachePath, error }: Props) {
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={2} />
 
       <Box flexDirection="column" alignItems="center" marginTop={1}>
         {error ? (

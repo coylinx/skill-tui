@@ -68,7 +68,7 @@ skilltui --version
 
 ### Theme
 
-Amber-orange accent (`#f5a623`) on a dark background, with a dual-tone block-art `SKILL TUI` title (ANSI Shadow style).
+A cool graphite console palette with mint primary actions and amber status cues, plus a dual-tone block-art `SKILL TUI` title (ANSI Shadow style). Each screen exposes its position in the import flow, selected counts, and keyboard actions at a glance.
 
 ---
 

@@ -8,7 +8,8 @@
 //           existing dir first (unless noBackup). All agents are Tier-1:
 //           pure directory copy, no extra wiring needed.
 
-import { existsSync, rmSync, cpSync, mkdirSync } from "node:fs";
+import { existsSync, rmSync, cpSync, mkdirSync, renameSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { skillTargetPath } from "./paths.js";
 import { backupExisting } from "./backup.js";
@@ -39,6 +40,36 @@ function validateTarget(targetPath: string): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+function tempSibling(targetPath: string, purpose: "stage" | "rollback"): string {
+  const parent = path.dirname(targetPath);
+  const name = path.basename(targetPath);
+  return path.join(parent, `.${name}.skill-tui-${purpose}-${process.pid}-${randomUUID()}`);
+}
+
+function removeQuietly(targetPath: string | undefined): void {
+  if (!targetPath) return;
+  try {
+    rmSync(targetPath, { recursive: true, force: true });
+  } catch {
+    // Best-effort cleanup. The original operation's error is more useful.
+  }
+}
+
+/** Copy and validate away from the live target before changing anything. */
+function stageSkill(src: string, targetPath: string): string {
+  const stagedPath = tempSibling(targetPath, "stage");
+  try {
+    copySkillDir(src, stagedPath);
+    if (!validateTarget(stagedPath)) {
+      throw new Error("导入后校验失败：SKILL.md 缺失或无法解析");
+    }
+    return stagedPath;
+  } catch (err) {
+    removeQuietly(stagedPath);
+    throw err;
   }
 }
 
@@ -80,18 +111,14 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
 
   // Case 1: target absent → fresh install.
   if (!exists) {
+    let stagedPath: string | undefined;
     try {
-      copySkillDir(skill.dir, targetPath);
-      if (!validateTarget(targetPath)) {
-        return {
-          status: "failed",
-          targetPath,
-          action: "skip",
-          message: "导入后校验失败：SKILL.md 缺失或无法解析",
-        };
-      }
+      stagedPath = stageSkill(skill.dir, targetPath);
+      renameSync(stagedPath, targetPath);
+      stagedPath = undefined;
       return { status: "done", targetPath, action: "skip" };
     } catch (e) {
+      removeQuietly(stagedPath);
       return {
         status: "failed",
         targetPath,
@@ -111,12 +138,27 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
     };
   }
 
-  // Case 3: target exists + overwrite → backup then replace.
+  // Case 3: target exists + overwrite → stage, backup, then atomically swap.
+  // The original stays in a temporary sibling until the staged copy is live,
+  // so even --no-backup can roll back a failed replacement.
+  let stagedPath: string;
+  try {
+    stagedPath = stageSkill(skill.dir, targetPath);
+  } catch (e) {
+    return {
+      status: "failed",
+      targetPath,
+      action: "overwrite",
+      message: errMsg(e),
+    };
+  }
+
   let backupPath: string | undefined;
   if (!opts.noBackup) {
     try {
       backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
     } catch (e) {
+      removeQuietly(stagedPath);
       return {
         status: "failed",
         targetPath,
@@ -125,20 +167,31 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
       };
     }
   }
+
+  const rollbackPath = tempSibling(targetPath, "rollback");
+  let originalMoved = false;
   try {
-    rmSync(targetPath, { recursive: true, force: true });
-    copySkillDir(skill.dir, targetPath);
-    if (!validateTarget(targetPath)) {
-      return {
-        status: "failed",
-        targetPath,
-        action: "overwrite",
-        backupPath,
-        message: "导入后校验失败：SKILL.md 缺失或无法解析",
-      };
-    }
-    return { status: "done", targetPath, action: "overwrite", backupPath };
+    renameSync(targetPath, rollbackPath);
+    originalMoved = true;
+    renameSync(stagedPath, targetPath);
+    stagedPath = "";
   } catch (e) {
+    removeQuietly(stagedPath);
+    if (originalMoved) {
+      try {
+        removeQuietly(targetPath);
+        renameSync(rollbackPath, targetPath);
+        originalMoved = false;
+      } catch (rollbackError) {
+        return {
+          status: "failed",
+          targetPath,
+          action: "overwrite",
+          backupPath,
+          message: `${errMsg(e)}；自动回滚失败：${errMsg(rollbackError)}`,
+        };
+      }
+    }
     return {
       status: "failed",
       targetPath,
@@ -147,6 +200,19 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
       message: errMsg(e),
     };
   }
+
+  try {
+    rmSync(rollbackPath, { recursive: true, force: true });
+  } catch (e) {
+    return {
+      status: "done",
+      targetPath,
+      action: "overwrite",
+      backupPath,
+      message: `导入成功，但临时旧版本清理失败：${errMsg(e)}`,
+    };
+  }
+  return { status: "done", targetPath, action: "overwrite", backupPath };
 }
 
 function errMsg(e: unknown): string {

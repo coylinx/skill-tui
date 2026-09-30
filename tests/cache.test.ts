@@ -4,7 +4,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { pruneCache } from "../src/core/cache.js";
 
 // pruneCache reads from cacheDir (a module-level constant pointing at the
 // real ~/.skill-tui/cache). To test hermetically we monkeypatch it via a
@@ -25,7 +24,6 @@ describe("pruneCache age logic", () => {
 // Hermetic test using a temp cache dir by mocking the paths module.
 describe("pruneCache on a temp dir", () => {
   let tmp: string;
-  let realCacheDir: string;
 
   beforeEach(() => {
     tmp = mkdtempSync(path.join(tmpdir(), "cache-test-"));

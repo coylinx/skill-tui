@@ -1,7 +1,6 @@
 // Verify the UrlInput screen renders and Enter submits the URL.
 import { describe, it, expect } from "vitest";
 import { render } from "ink-testing-library";
-import React from "react";
 import { UrlInput } from "../src/components/url-input.js";
 
 // ink-testing-library flushes input asynchronously; give handlers a tick.
@@ -31,6 +30,23 @@ describe("UrlInput", () => {
     await flush();
     unmount();
     expect(submitted).toBe("https://github.com/x/skills.git");
+  });
+
+  it("prefills initialValue without auto-submitting on mount", async () => {
+    let submitted = "";
+    const { lastFrame, unmount } = render(
+      <UrlInput
+        initialValue="https://github.com/x/prefilled.git"
+        history={[]}
+        onSubmit={(url) => {
+          submitted = url;
+        }}
+      />,
+    );
+    await flush();
+    expect(lastFrame() ?? "").toContain("https://github.com/x/prefilled.git");
+    expect(submitted).toBe("");
+    unmount();
   });
 
   it("recalls history with the up arrow", async () => {

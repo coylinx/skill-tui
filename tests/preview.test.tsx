@@ -3,11 +3,10 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render } from "ink-testing-library";
-import React from "react";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Preview } from "../src/components/preview.js";
+import { Preview, formatDryRunPlan } from "../src/components/preview.js";
 import { skillTargetPath } from "../src/core/paths.js";
 import type { ImportTask, Skill } from "../src/types.js";
 
@@ -31,7 +30,7 @@ function makeSkill(name: string): Skill {
 describe("Preview screen", () => {
   it("renders install items with + glyph for fresh targets", () => {
     const skill = makeSkill("preview-fresh-xyz");
-    const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+    const tasks: ImportTask[] = [{ skill, agent: "codex" }];
     const { lastFrame, unmount } = render(
       <Preview tasks={tasks} dryRun={false} noBackup={false} onConfirm={() => {}} onBack={() => {}} />,
     );
@@ -44,17 +43,17 @@ describe("Preview screen", () => {
 
   it("marks existing targets as skip by default", () => {
     const skill = makeSkill("preview-skip-xyz");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
     try {
-      const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+      const tasks: ImportTask[] = [{ skill, agent: "codex" }];
       const { lastFrame, unmount } = render(
         <Preview tasks={tasks} dryRun={false} noBackup={false} onConfirm={() => {}} onBack={() => {}} />,
       );
       const frame = lastFrame() ?? "";
       unmount();
-      expect(frame).toMatch(/◷/); // exists glyph
+      expect(frame).toMatch(/跳过 1 项/);
       expect(frame).toMatch(/跳过/);
     } finally {
       rmSync(target, { recursive: true, force: true });
@@ -63,11 +62,11 @@ describe("Preview screen", () => {
 
   it("toggles to overwrite mode with the o key", async () => {
     const skill = makeSkill("preview-ow-xyz");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
     try {
-      const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+      const tasks: ImportTask[] = [{ skill, agent: "codex" }];
       const { stdin, lastFrame, unmount } = render(
         <Preview tasks={tasks} dryRun={false} noBackup={false} onConfirm={() => {}} onBack={() => {}} />,
       );
@@ -77,7 +76,7 @@ describe("Preview screen", () => {
       const frame = lastFrame() ?? "";
       unmount();
       expect(frame).toMatch(/覆盖\+备份/);
-      expect(frame).toMatch(/↻/); // overwrite glyph
+      expect(frame).toMatch(/覆盖 1 项/);
     } finally {
       rmSync(target, { recursive: true, force: true });
     }
@@ -85,11 +84,11 @@ describe("Preview screen", () => {
 
   it("starts in overwrite mode when initialOverwrite is set (--overwrite flag)", async () => {
     const skill = makeSkill("preview-flag-ow-xyz");
-    const target = skillTargetPath("claude", skill.name);
+    const target = skillTargetPath("codex", skill.name);
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, "SKILL.md"), "---\n---\nold\n");
     try {
-      const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+      const tasks: ImportTask[] = [{ skill, agent: "codex" }];
       let confirmed = null as boolean | null;
       const { stdin, lastFrame, unmount } = render(
         <Preview
@@ -104,7 +103,7 @@ describe("Preview screen", () => {
       await new Promise((r) => setTimeout(r, 20));
       const frame = lastFrame() ?? "";
       expect(frame).toMatch(/覆盖\+备份/); // overwrite mode active without pressing o
-      expect(frame).toMatch(/↻/);
+      expect(frame).toMatch(/覆盖 1 项/);
       stdin.write("\r");
       await new Promise((r) => setTimeout(r, 20));
       unmount();
@@ -116,7 +115,7 @@ describe("Preview screen", () => {
 
   it("calls onConfirm with overwrite=false on Enter by default", async () => {
     const skill = makeSkill("preview-enter-xyz");
-    const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+    const tasks: ImportTask[] = [{ skill, agent: "codex" }];
     let confirmed = null as boolean | null;
     const { stdin, unmount } = render(
       <Preview
@@ -132,5 +131,35 @@ describe("Preview screen", () => {
     await new Promise((r) => setTimeout(r, 20));
     unmount();
     expect(confirmed).toBe(false);
+  });
+
+  it("returns a persistent dry-run report instead of printing inside Ink", async () => {
+    const skill = makeSkill("preview-dry-run-xyz");
+    const tasks: ImportTask[] = [{ skill, agent: "codex" }];
+    let report = "";
+    const { stdin } = render(
+      <Preview
+        tasks={tasks}
+        dryRun
+        noBackup={false}
+        onDryRun={(value) => (report = value)}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    stdin.write("\r");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(report).toMatch(/\[dry-run\]/);
+    expect(report).toMatch(/INSTALL\s+codex\/preview-dry-run-xyz/);
+  });
+
+  it("formats dry-run plans without writing to stdout", () => {
+    const skill = makeSkill("preview-format-xyz");
+    const report = formatDryRunPlan(
+      [{ skill, agent: "codex", targetPath: "C:/target", exists: false, action: "skip" }],
+      false,
+    );
+    expect(report).toContain("覆盖模式: 否");
+    expect(report).toContain("INSTALL");
   });
 });

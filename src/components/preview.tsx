@@ -19,6 +19,7 @@ interface Props {
   noBackup: boolean;
   /** Initial overwrite mode (from the --overwrite flag); `o` still toggles. */
   initialOverwrite?: boolean;
+  onDryRun?: (report: string) => void;
   onConfirm: (overwrite: boolean) => void;
   onBack: () => void;
 }
@@ -29,7 +30,15 @@ const HINTS = (dryRun: boolean): Hint[] => [
   { key: "Esc", label: "返回" },
 ];
 
-export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onConfirm, onBack }: Props) {
+export function Preview({
+  tasks,
+  dryRun,
+  noBackup,
+  initialOverwrite = false,
+  onDryRun,
+  onConfirm,
+  onBack,
+}: Props) {
   const { exit } = useApp();
   const [overwrite, setOverwrite] = useState(initialOverwrite);
 
@@ -40,17 +49,19 @@ export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onC
 
   // group by agent for readable output
   const byAgent = useMemo(() => groupBy(items, (i) => i.agent), [items]);
-  const installCount = items.filter((i) => !i.exists).length;
+  const freshCount = items.filter((i) => !i.exists).length;
   const overwriteCount = items.filter((i) => i.exists && i.action === "overwrite").length;
   const skipCount = items.filter((i) => i.exists && i.action === "skip").length;
+  const writeCount = freshCount + overwriteCount;
 
   useInput((input, key) => {
     if (key.escape) {
       onBack();
     } else if (key.return) {
       if (dryRun) {
-        // print the plan to stdout and exit (no writes)
-        printDryRun(items, overwrite);
+        // Hand the report to the CLI entry point. It prints only after Ink
+        // exits the alternate screen, so the text remains visible.
+        onDryRun?.(formatDryRunPlan(items, overwrite));
         exit();
       } else {
         onConfirm(overwrite);
@@ -62,7 +73,7 @@ export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onC
 
   return (
     <ScreenFrame>
-      <Title />
+      <Title stage={6} />
 
       <Box
         flexDirection="column"
@@ -81,13 +92,19 @@ export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onC
 
         <Box marginBottom={1}>
           <Text color={theme.text}>
-            将安装 {installCount} 项
+            将安装 {writeCount} 项
             {overwriteCount > 0 ? (
               <Text color={theme.warning}> · 覆盖 {overwriteCount} 项</Text>
             ) : null}
             {skipCount > 0 ? (
               <Text dimColor> · 跳过 {skipCount} 项</Text>
             ) : null}
+          </Text>
+        </Box>
+
+        <Box marginBottom={1}>
+          <Text color={theme.textMuted}>
+            {Object.keys(byAgent).length} 个 Agent · {items.length} 个目标路径 · 写入前可回退
           </Text>
         </Box>
 
@@ -121,7 +138,7 @@ export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onC
 
         <Box marginTop={1}>
           <Text dimColor>
-            已存在处理：{overwrite ? "覆盖+备份" : "跳过（默认）"} — 按 o 切换
+            已存在处理：{overwrite ? (noBackup ? "覆盖（无备份）" : "覆盖+备份") : "跳过（默认）"} — 按 o 切换
           </Text>
         </Box>
       </Box>
@@ -140,9 +157,12 @@ function groupBy<T>(arr: T[], key: (t: T) => string): Record<string, T[]> {
   return out;
 }
 
-function printDryRun(items: PlanItem[], overwrite: boolean): void {
-  console.log("\n[dry-run] 导入计划（不会写入磁盘）：");
-  console.log(`覆盖模式: ${overwrite ? "是" : "否"}\n`);
+export function formatDryRunPlan(items: PlanItem[], overwrite: boolean): string {
+  const lines = [
+    "[dry-run] 导入计划（不会写入磁盘）：",
+    `覆盖模式: ${overwrite ? "是" : "否"}`,
+    "",
+  ];
   for (const item of items) {
     const tag = item.exists
       ? item.action === "overwrite"
@@ -150,7 +170,7 @@ function printDryRun(items: PlanItem[], overwrite: boolean): void {
         : "SKIP"
       : "INSTALL";
     const name = item.skill.installName ?? item.skill.name;
-    console.log(`  ${tag.padEnd(9)} ${item.agent}/${name} → ${item.targetPath}`);
+    lines.push(`  ${tag.padEnd(9)} ${item.agent}/${name} → ${item.targetPath}`);
   }
-  console.log("");
+  return lines.join("\n") + "\n";
 }

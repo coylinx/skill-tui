@@ -4,10 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
+    setupFiles: ["tests/setup.ts"],
     globals: false,
-  },
-  esbuild: {
-    jsx: "automatic",
-    loader: "tsx",
   },
 });
