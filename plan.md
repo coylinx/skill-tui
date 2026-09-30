@@ -2,7 +2,7 @@
 
 > 一个用 TypeScript 编写的终端 UI 工具：输入 Skill 仓库的 Git 地址，浏览仓库内的 Skill，选择目标 Agent（Claude Code / Codex / Cursor / ZCode / OpenClaw / Hermes / OpenCode），一键导入到对应 Agent 的 Skill 目录。
 
-> **2026-09-30 实施状态**：当前执行第 13 节。第 1–12 节保留历史设计，其中 Agent 路径与兼容性结论需在扩展目标时重新验证。第一批交付为安装 manifest、事务回滚、inventory、`list` 和 `doctor`，之后再实现 update/remove 和管理页。每个通过验证的阶段单独 Git 提交。
+> **2026-09-30 实施状态**：当前执行第 13 节。第 1–12 节保留历史设计，其中 Agent 路径与兼容性结论需在扩展目标时重新验证。已交付安装 manifest、事务回滚、Git commit provenance、inventory、`list`、`doctor`、安全的 `remove` 预览/执行；下一阶段实现更新差异和管理页。每个通过验证的阶段单独 Git 提交。
 
 ---
 

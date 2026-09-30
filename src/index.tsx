@@ -15,9 +15,10 @@ import { pruneCache } from "./core/cache.js";
 import { displayPath } from "./core/agents.js";
 import { doctor } from "./core/doctor.js";
 import { inventory } from "./core/inventory.js";
+import { findInstallations, planRemoval, removeInstallations } from "./core/remove.js";
 import type { AgentId, InventoryItem } from "./types.js";
 
-type Command = "list" | "doctor";
+type Command = "list" | "doctor" | "remove";
 
 interface ParsedArgs {
   flags: AppFlags;
@@ -25,6 +26,7 @@ interface ParsedArgs {
   command?: Command;
   json: boolean;
   agent?: AgentId;
+  yes: boolean;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -33,14 +35,16 @@ function parseArgs(argv: string[]): ParsedArgs {
   let command: Command | undefined;
   let json = false;
   let agent: AgentId | undefined;
+  let yes = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--dry-run") flags.dryRun = true;
     else if (arg === "--overwrite") flags.overwrite = true;
     else if (arg === "--no-backup") flags.noBackup = true;
     else if (arg === "--json") json = true;
+    else if (arg === "--yes" || arg === "-y") yes = true;
     else if (arg === "--agent") agent = argv[++i] as AgentId | undefined;
-    else if ((arg === "list" || arg === "doctor") && !command && !url) command = arg;
+    else if ((arg === "list" || arg === "doctor" || arg === "remove") && !command && !url) command = arg;
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -51,7 +55,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       url = arg;
     }
   }
-  return { flags, url, command, json, agent };
+  return { flags, url, command, json, agent, yes };
 }
 
 function printHelp(): void {
@@ -69,6 +73,7 @@ Options:
   --no-backup    Skip backup on overwrite (requires confirm in preview)
   list           List installed and unmanaged Skills (use --json for scripts)
   doctor         Check manifest and installed Skill health (use --json)
+  remove <name>  Preview removal of a managed Skill; use --yes to execute
   --agent <id>   Limit list to one Agent
   --json         Emit machine-readable output for list/doctor
   -h, --help     Show this help
@@ -94,7 +99,7 @@ function listView(item: InventoryItem) {
   };
 }
 
-function runCommand(command: Command, json: boolean, agent?: AgentId): number {
+function runCommand(command: Command, json: boolean, agent?: AgentId, target?: string, yes = false): number {
   if (command === "list") {
     const items = inventory().filter((item) => !agent || item.agent === agent);
     if (json) {
@@ -113,6 +118,35 @@ function runCommand(command: Command, json: boolean, agent?: AgentId): number {
       console.log(`${status} ${item.agent.padEnd(10)} ${name.padEnd(29)} ${displayPath(item.targetPath)}`);
     }
     return 0;
+  }
+
+  if (command === "remove") {
+    if (!target) {
+      const message = "remove 需要 Skill 安装名、skillId 或来源相对路径。";
+      if (json) console.log(JSON.stringify({ error: message }));
+      else console.error(message);
+      return 2;
+    }
+    const records = findInstallations(target, agent);
+    const plan = planRemoval(records);
+    if (json && !yes) {
+      console.log(JSON.stringify({ schemaVersion: 1, query: target, execute: false, items: plan }, null, 2));
+      return records.length > 0 ? 0 : 1;
+    }
+    if (!yes) {
+      if (plan.length === 0) {
+        console.log(`没有找到受 skilltui 管理的 Skill：${target}`);
+        return 1;
+      }
+      console.log(`将删除 ${plan.length} 个安装目标（只读预览）：`);
+      for (const item of plan) console.log(`- ${item.action.padEnd(7)} ${item.record.agent}/${item.record.installName} → ${displayPath(item.record.targetPath)}`);
+      console.log("确认执行请加 --yes；默认不会修改磁盘。");
+      return 0;
+    }
+    const results = removeInstallations(records);
+    if (json) console.log(JSON.stringify({ schemaVersion: 1, query: target, execute: true, results }, null, 2));
+    else for (const result of results) console.log(`${result.status}: ${displayPath(result.targetPath)}${result.message ? ` — ${result.message}` : ""}`);
+    return results.some((result) => result.status === "failed") ? 1 : 0;
   }
 
   const report = doctor();
@@ -143,11 +177,11 @@ function printVersion(): void {
 }
 
 function main(): void {
-  const { flags, url, command, json, agent } = parseArgs(process.argv.slice(2));
+  const { flags, url, command, json, agent, yes } = parseArgs(process.argv.slice(2));
 
   if (command) {
     try {
-      process.exitCode = runCommand(command, json, agent);
+      process.exitCode = runCommand(command, json, agent, url, yes);
     } catch (error) {
       if (json) console.log(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
       else console.error(`skilltui ${command} 失败：`, error instanceof Error ? error.message : String(error));

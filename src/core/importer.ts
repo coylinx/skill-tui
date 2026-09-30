@@ -122,7 +122,7 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
       const previous = doc.installations.find((record) => record.id === id);
       const record = createInstallation(task, targetPath, stagedPath, previous);
       if (exists && !opts.noBackup) {
-        backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
+        backupPath = backupExisting(agent, installName, targetPath, previous) ?? undefined;
       }
       const message = replaceTarget(stagedPath, targetPath, () => commit({
         schemaVersion: 1,

@@ -42,6 +42,9 @@ skilltui https://github.com/obra/superpowers.git   # skip URL entry
 skilltui --dry-run <url>              # preview what would be written, no changes
 skilltui --overwrite <url>            # overwrite existing skills (backs up first)
 skilltui --no-backup <url>            # overwrite without backup (confirm required)
+skilltui list [--agent <id>]          # inspect managed and unmanaged Skills
+skilltui doctor [--json]              # validate manifest and installed Skills
+skilltui remove <name> [--yes]        # preview, then explicitly remove a managed Skill
 skilltui --help
 skilltui --version
 ```
@@ -65,6 +68,9 @@ skilltui --version
 - **Backups**: overwriting a skill first copies the old directory to `~/.skill-tui/backup/<agent>/<name>/<timestamp>/`, recorded in `~/.skill-tui/backup/index.json`. Restore from the result screen with `b`.
 - **Skip by default**: existing skills are left alone unless you enable overwrite.
 - **Cache auto-prune**: cloned repos in `~/.skill-tui/cache/` older than 2 hours are deleted on each launch.
+- **Installation manifest**: successful imports record source, commit, target, and content hashes in `~/.skill-tui/manifest.json`.
+- **Read-only management**: `list` and `doctor` reconcile the manifest with agent directories; existing unmanaged Skills are reported without being claimed or changed.
+- **Explicit removal**: `remove` is preview-only unless `--yes` is supplied, and creates a backup before deleting a managed target.
 
 ### Theme
 

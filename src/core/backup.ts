@@ -7,7 +7,8 @@
 import { existsSync, rmSync, cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { backupDir, backupIndexFile } from "./paths.js";
-import type { AgentId } from "../types.js";
+import { installationId, withManifestLock } from "./manifest.js";
+import type { AgentId, InstallationRecord } from "../types.js";
 
 export interface BackupRecord {
   id: string; // <agent>/<skillName>/<timestamp>
@@ -17,6 +18,8 @@ export interface BackupRecord {
   originalPath: string;
   backupPath: string;
   createdAt: number;
+  /** The record that was replaced, if the target was manifest-managed. */
+  installation?: InstallationRecord;
 }
 
 function timestamp(): string {
@@ -47,6 +50,7 @@ export function backupExisting(
   agent: AgentId,
   skillName: string,
   originalPath: string,
+  installation?: InstallationRecord,
 ): string | null {
   if (!existsSync(originalPath)) return null;
   const ts = timestamp();
@@ -62,6 +66,7 @@ export function backupExisting(
     originalPath,
     backupPath,
     createdAt: Date.now(),
+    installation,
   };
   const records = loadBackupIndex();
   records.push(record);
@@ -78,6 +83,15 @@ export function restoreBackup(record: BackupRecord): void {
   mkdirSync(path.dirname(record.originalPath), { recursive: true });
   rmSync(record.originalPath, { recursive: true, force: true });
   cpSync(record.backupPath, record.originalPath, { recursive: true, force: true });
+  // Restore the metadata that described the backed-up content. If the old
+  // target was unmanaged, remove the current managed record instead of
+  // inventing provenance for a manually installed directory.
+  withManifestLock((manifest, commit) => {
+    const id = installationId(record.agent, record.originalPath);
+    const installations = manifest.installations.filter((item) => item.id !== id);
+    if (record.installation) installations.push(record.installation);
+    commit({ schemaVersion: 1, installations });
+  });
 }
 
 /** List recent backups, newest first. */
