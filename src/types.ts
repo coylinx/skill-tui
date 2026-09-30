@@ -7,6 +7,38 @@ export interface Skill {
   description: string; // frontmatter.description, fallback to body first line
   relativePath: string; // path relative to the repo root
   installName?: string; // custom install folder name (defaults to `name`)
+  source?: SkillSource;
+}
+
+export interface SkillSource {
+  kind: "git" | "local";
+  location: string; // credential-free URL or absolute local path
+  relativePath: string;
+  commit: string | null; // unknown is explicit, never inferred
+}
+
+export interface SkillFileDigest {
+  path: string; // slash-separated path relative to the installed skill
+  size: number;
+  sha256: string;
+}
+
+export interface InstallationRecord {
+  id: string;
+  skillId: string;
+  installName: string;
+  agent: AgentId;
+  targetPath: string;
+  source: SkillSource;
+  installedAt: string;
+  updatedAt: string;
+  contentHash: string;
+  files: SkillFileDigest[];
+}
+
+export interface InstallManifest {
+  schemaVersion: 1;
+  installations: InstallationRecord[];
 }
 
 export type AgentId =

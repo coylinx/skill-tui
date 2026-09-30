@@ -31,6 +31,9 @@ export const historyFile = path.join(dataRoot, "history.json");
 /** Backup index recording metadata for restore. */
 export const backupIndexFile = path.join(backupDir, "index.json");
 
+/** Versioned installation records. */
+export const manifestFile = path.join(dataRoot, "manifest.json");
+
 // --- Env-aware agent root resolvers (exported for testing) ---
 
 /** Codex: respects CODEX_HOME env var. */

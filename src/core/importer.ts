@@ -8,12 +8,13 @@
 //           existing dir first (unless noBackup). All agents are Tier-1:
 //           pure directory copy, no extra wiring needed.
 
-import { existsSync, rmSync, cpSync, mkdirSync, renameSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { existsSync, cpSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { skillTargetPath } from "./paths.js";
+import { agentSkillsDirs, skillTargetPath } from "./paths.js";
 import { backupExisting } from "./backup.js";
 import { parseSkillFile } from "./frontmatter.js";
+import { createInstallation, installationId, withManifestLock } from "./manifest.js";
+import { tempSibling, removeQuietly, replaceTarget } from "./transaction.js";
 import type { ImportResult, ImportTask, OverwriteMode, PlanItem } from "../types.js";
 
 const SKIP_DIRS = new Set([".git", "node_modules"]);
@@ -40,21 +41,6 @@ function validateTarget(targetPath: string): boolean {
     return true;
   } catch {
     return false;
-  }
-}
-
-function tempSibling(targetPath: string, purpose: "stage" | "rollback"): string {
-  const parent = path.dirname(targetPath);
-  const name = path.basename(targetPath);
-  return path.join(parent, `.${name}.skill-tui-${purpose}-${process.pid}-${randomUUID()}`);
-}
-
-function removeQuietly(targetPath: string | undefined): void {
-  if (!targetPath) return;
-  try {
-    rmSync(targetPath, { recursive: true, force: true });
-  } catch {
-    // Best-effort cleanup. The original operation's error is more useful.
   }
 }
 
@@ -107,29 +93,7 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
   const { skill, agent } = task;
   const installName = skill.installName ?? skill.name;
   const targetPath = skillTargetPath(agent, installName);
-  const exists = existsSync(targetPath);
-
-  // Case 1: target absent → fresh install.
-  if (!exists) {
-    let stagedPath: string | undefined;
-    try {
-      stagedPath = stageSkill(skill.dir, targetPath);
-      renameSync(stagedPath, targetPath);
-      stagedPath = undefined;
-      return { status: "done", targetPath, action: "skip" };
-    } catch (e) {
-      removeQuietly(stagedPath);
-      return {
-        status: "failed",
-        targetPath,
-        action: "skip",
-        message: errMsg(e),
-      };
-    }
-  }
-
-  // Case 2: target exists + not overwrite → skip.
-  if (!opts.overwrite) {
+  if (existsSync(targetPath) && !opts.overwrite) {
     return {
       status: "skipped",
       targetPath,
@@ -138,81 +102,45 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
     };
   }
 
-  // Case 3: target exists + overwrite → stage, backup, then atomically swap.
-  // The original stays in a temporary sibling until the staged copy is live,
-  // so even --no-backup can roll back a failed replacement.
-  let stagedPath: string;
-  try {
-    stagedPath = stageSkill(skill.dir, targetPath);
-  } catch (e) {
-    return {
-      status: "failed",
-      targetPath,
-      action: "overwrite",
-      message: errMsg(e),
-    };
-  }
-
+  let action: OverwriteMode = "skip";
+  let stagedPath: string | undefined;
   let backupPath: string | undefined;
-  if (!opts.noBackup) {
-    try {
-      backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
-    } catch (e) {
-      removeQuietly(stagedPath);
-      return {
-        status: "failed",
-        targetPath,
-        action: "overwrite",
-        message: `备份失败：${errMsg(e)}`,
-      };
-    }
-  }
-
-  const rollbackPath = tempSibling(targetPath, "rollback");
-  let originalMoved = false;
   try {
-    renameSync(targetPath, rollbackPath);
-    originalMoved = true;
-    renameSync(stagedPath, targetPath);
-    stagedPath = "";
+    if (!Object.hasOwn(agentSkillsDirs, agent) || !installName ||
+      /[\\/:]/.test(installName) || [".", ".."].includes(installName)) {
+      throw new Error("安装名必须是单个目录名");
+    }
+    return withManifestLock((doc, commit) => {
+      // Recheck under the lock: another process may have installed this target.
+      const exists = existsSync(targetPath);
+      action = exists && opts.overwrite ? "overwrite" : "skip";
+      if (exists && !opts.overwrite) {
+        return { status: "skipped", targetPath, action, message: "已存在（未覆盖）" };
+      }
+      stagedPath = stageSkill(skill.dir, targetPath);
+      const id = installationId(agent, targetPath);
+      const previous = doc.installations.find((record) => record.id === id);
+      const record = createInstallation(task, targetPath, stagedPath, previous);
+      if (exists && !opts.noBackup) {
+        backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
+      }
+      const message = replaceTarget(stagedPath, targetPath, () => commit({
+        schemaVersion: 1,
+        installations: [...doc.installations.filter((old) => old.id !== id), record],
+      }));
+      stagedPath = undefined;
+      return { status: "done", targetPath, action, backupPath, message };
+    });
   } catch (e) {
     removeQuietly(stagedPath);
-    if (originalMoved) {
-      try {
-        removeQuietly(targetPath);
-        renameSync(rollbackPath, targetPath);
-        originalMoved = false;
-      } catch (rollbackError) {
-        return {
-          status: "failed",
-          targetPath,
-          action: "overwrite",
-          backupPath,
-          message: `${errMsg(e)}；自动回滚失败：${errMsg(rollbackError)}`,
-        };
-      }
-    }
     return {
       status: "failed",
       targetPath,
-      action: "overwrite",
+      action,
       backupPath,
       message: errMsg(e),
     };
   }
-
-  try {
-    rmSync(rollbackPath, { recursive: true, force: true });
-  } catch (e) {
-    return {
-      status: "done",
-      targetPath,
-      action: "overwrite",
-      backupPath,
-      message: `导入成功，但临时旧版本清理失败：${errMsg(e)}`,
-    };
-  }
-  return { status: "done", targetPath, action: "overwrite", backupPath };
 }
 
 function errMsg(e: unknown): string {
