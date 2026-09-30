@@ -41,6 +41,32 @@ export interface InstallManifest {
   installations: InstallationRecord[];
 }
 
+export type InventoryStatus = "managed" | "modified" | "unmanaged" | "missing" | "invalid";
+
+export interface InventoryItem {
+  status: InventoryStatus;
+  agent: AgentId;
+  installName: string;
+  targetPath: string;
+  record?: InstallationRecord;
+  contentHash?: string;
+  issue?: string;
+}
+
+export interface DoctorIssue {
+  severity: "error" | "warning";
+  code: string;
+  message: string;
+  path?: string;
+}
+
+export interface DoctorReport {
+  schemaVersion: 1;
+  ok: boolean;
+  checked: number;
+  issues: DoctorIssue[];
+}
+
 export type AgentId =
   | "claude"
   | "codex"
