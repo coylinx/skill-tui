@@ -82,7 +82,15 @@ export function App({
         if (controller.signal.aborted) return;
         await saveHistory(screen.url);
         if (controller.signal.aborted) return;
-        const found = discoverSkills(res.dir);
+        const found = discoverSkills(res.dir).map((skill) => ({
+          ...skill,
+          source: {
+            kind: "git" as const,
+            location: screen.url,
+            relativePath: skill.relativePath,
+            commit: res.commit ?? null,
+          },
+        }));
         setSkills(found);
         skillsCtx.current = { repoDir: res.dir, url: screen.url };
         setScreen({ kind: "skills", repoDir: res.dir, url: screen.url });
