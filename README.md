@@ -51,6 +51,8 @@ skilltui --help
 skilltui --version
 ```
 
+在交互首页按 `m` 可打开本机 Skill 管理台：它汇总安装状态，`r` 刷新磁盘状态，`u` 扫描已记录来源的更新，`Esc` 返回导入首页。管理台默认只读，不会绕过命令行的预览确认。
+
 ### Flow
 
 1. **URL input** — enter a Skill repo's git address (↑/↓ recalls history). Launched with `skilltui <url>` to skip this step.
@@ -130,7 +132,8 @@ src/
 │   ├── importing.tsx      #   ⑦ concurrent copy + progress bar
 │   ├── progress-bar.tsx   #   text progress bar widget
 │   ├── spinner.tsx        #   spinner wrapper
-│   └── result.tsx         #   ⑧ summary + restore backup
+│   ├── result.tsx          #   ⑧ summary + restore backup
+│   └── manager.tsx         #   read-only local Skill management dashboard
 │
 └── core/                  # logic (no UI, fully testable)
     ├── repo.ts            #   git clone / cache / pull
