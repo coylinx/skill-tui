@@ -4,10 +4,13 @@
 // and record metadata in ~/.skill-tui/backup/index.json so the result
 // screen can offer a restore.
 
-import { existsSync, rmSync, cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, cpSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { backupDir, backupIndexFile } from "./paths.js";
-import { installationId, withManifestLock } from "./manifest.js";
+import { canonicalPath, installationId, validateInstallation, withManifestLock } from "./manifest.js";
+import { parseSkillFile } from "./frontmatter.js";
+import { removeQuietly, replaceTarget, tempSibling } from "./transaction.js";
 import type { AgentId, InstallationRecord } from "../types.js";
 
 export interface BackupRecord {
@@ -39,7 +42,13 @@ export function loadBackupIndex(): BackupRecord[] {
 
 function saveBackupIndex(records: BackupRecord[]): void {
   mkdirSync(backupDir, { recursive: true });
-  writeFileSync(backupIndexFile, JSON.stringify(records, null, 2), "utf8");
+  const tmp = `${backupIndexFile}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(tmp, JSON.stringify(records, null, 2), { encoding: "utf8", flag: "wx", mode: 0o600 });
+    renameSync(tmp, backupIndexFile);
+  } finally {
+    if (existsSync(tmp)) unlinkSync(tmp);
+  }
 }
 
 /**
@@ -53,7 +62,7 @@ export function backupExisting(
   installation?: InstallationRecord,
 ): string | null {
   if (!existsSync(originalPath)) return null;
-  const ts = timestamp();
+  const ts = `${timestamp()}-${randomUUID()}`;
   const backupPath = path.join(backupDir, agent, skillName, ts);
   mkdirSync(backupPath, { recursive: true });
   cpSync(originalPath, backupPath, { recursive: true, force: true });
@@ -80,17 +89,24 @@ export function restoreBackup(record: BackupRecord): void {
   if (!existsSync(record.backupPath)) {
     throw new Error(`备份不存在: ${record.backupPath}`);
   }
-  mkdirSync(path.dirname(record.originalPath), { recursive: true });
-  rmSync(record.originalPath, { recursive: true, force: true });
-  cpSync(record.backupPath, record.originalPath, { recursive: true, force: true });
-  // Restore the metadata that described the backed-up content. If the old
-  // target was unmanaged, remove the current managed record instead of
-  // inventing provenance for a manually installed directory.
   withManifestLock((manifest, commit) => {
     const id = installationId(record.agent, record.originalPath);
     const installations = manifest.installations.filter((item) => item.id !== id);
-    if (record.installation) installations.push(record.installation);
-    commit({ schemaVersion: 1, installations });
+    if (record.installation) {
+      validateInstallation(record.installation);
+      if (record.installation.id !== id || canonicalPath(record.installation.targetPath) !== canonicalPath(record.originalPath)) {
+        throw new Error("备份记录与恢复目标不匹配");
+      }
+      installations.push(record.installation);
+    }
+    const staged = tempSibling(record.originalPath, "stage");
+    try {
+      mkdirSync(path.dirname(staged), { recursive: true });
+      cpSync(record.backupPath, staged, { recursive: true, force: false });
+      parseSkillFile(path.join(staged, "SKILL.md"));
+      // The live version stays available until the manifest commit succeeds.
+      replaceTarget(staged, record.originalPath, () => commit({ schemaVersion: 1, installations }));
+    } finally { removeQuietly(staged); }
   });
 }
 
