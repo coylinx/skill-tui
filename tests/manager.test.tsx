@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "ink-testing-library";
+
+vi.mock("../src/core/inventory.js", () => ({ inventory: () => [] }));
+
 import { Manager } from "../src/components/manager.js";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 30));
