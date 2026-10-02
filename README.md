@@ -44,6 +44,8 @@ skilltui --overwrite <url>            # overwrite existing skills (backs up firs
 skilltui --no-backup <url>            # overwrite without backup (confirm required)
 skilltui list [--agent <id>]          # inspect managed and unmanaged Skills
 skilltui doctor [--json]              # validate manifest and installed Skills
+skilltui update [name] [--yes]        # preview source changes; apply explicitly
+skilltui update [name] --yes --force  # apply even when the target has local edits
 skilltui remove <name> [--yes]        # preview, then explicitly remove a managed Skill
 skilltui --help
 skilltui --version
@@ -70,6 +72,7 @@ skilltui --version
 - **Cache auto-prune**: cloned repos in `~/.skill-tui/cache/` older than 2 hours are deleted on each launch.
 - **Installation manifest**: successful imports record source, commit, target, and content hashes in `~/.skill-tui/manifest.json`.
 - **Read-only management**: `list` and `doctor` reconcile the manifest with agent directories; existing unmanaged Skills are reported without being claimed or changed.
+- **Transactional updates**: `update` materializes the recorded source, shows added/modified/removed files, and only writes after `--yes`; local target edits require `--force`, while missing targets can be repaired from the source.
 - **Explicit removal**: `remove` is preview-only unless `--yes` is supplied, and creates a backup before deleting a managed target.
 
 ### Theme
@@ -138,6 +141,11 @@ src/
     ├── detect.ts          #   executable-on-PATH probe (which/where)
     ├── importer.ts        #   plan() + importTask() with backup
     ├── backup.ts          #   backup + restore
+    ├── source.ts          #   materialize recorded local/Git sources
+    ├── diff.ts            #   deterministic file-level update diff
+    ├── update.ts          #   update preview and apply plan
+    ├── inventory.ts       #   reconcile manifest and agent directories
+    ├── doctor.ts          #   health checks for manifest and targets
     ├── history.ts         #   URL history persistence
     └── paths.ts           #   cross-platform paths (~/.skill-tui/, agent dirs)
 ```
@@ -146,14 +154,14 @@ src/
 
 - **All agents are Tier-1**: pure directory copy, no config-file wiring. Gemini CLI's `GEMINI.md` @-import turned out to be unnecessary (native discovery); this was verified during research.
 - **Pre-rendered logo**: the figlet ASCII art is embedded as a string constant — no runtime font-file dependency, smaller bundle.
-- **Safety-first imports**: `plan()` is a pure function (no writes) that both the preview screen and `--dry-run` reuse. `importTask()` only runs after explicit confirmation.
+- **Safety-first imports and updates**: `plan()` is a pure function (no writes) that both the preview screen and `--dry-run` reuse. `importTask()` remains the only target write boundary; `update` builds a diff plan first and applies it through the same importer.
 - **Three-state detection**: `installed` (exe on PATH) / `configured` (config dir exists but no exe) / `missing` (neither) — more accurate than just checking for a config directory.
 - **`~/.agents/skills/`**: cross-agent alias path recognized by OpenClaw, OpenCode, and Codex. Future feature: "install once, all agents use it."
 
 ### Testing
 
 ```sh
-npm test           # 35+ tests via vitest + ink-testing-library
+npm test           # 75+ tests via vitest + ink-testing-library
 ```
 
 Tests cover: skill discovery (3 repo layouts), frontmatter parsing, agent detection logic, importer plan/fresh/skip/overwrite/backup/restore, preview screen rendering, naming screen interaction, and a full e2e flow with a cached real repo.

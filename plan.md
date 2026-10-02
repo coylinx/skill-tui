@@ -2,7 +2,7 @@
 
 > 一个用 TypeScript 编写的终端 UI 工具：输入 Skill 仓库的 Git 地址，浏览仓库内的 Skill，选择目标 Agent（Claude Code / Codex / Cursor / ZCode / OpenClaw / Hermes / OpenCode），一键导入到对应 Agent 的 Skill 目录。
 
-> **2026-09-30 实施状态**：当前执行第 13 节。第 1–12 节保留历史设计，其中 Agent 路径与兼容性结论需在扩展目标时重新验证。已交付安装 manifest、事务回滚、Git commit provenance、inventory、`list`、`doctor`、安全的 `remove` 预览/执行；下一阶段实现更新差异和管理页。每个通过验证的阶段单独 Git 提交。
+> **2026-10-02 实施状态**：当前执行第 13 节。第 1–12 节保留历史设计，其中 Agent 路径与兼容性结论需在扩展目标时重新验证。已交付安装 manifest、事务回滚、Git commit provenance、inventory、`list`、`doctor`、安全的 `remove` 预览/执行，以及 `update` 的来源物化、文件差异和强制覆盖边界；下一阶段实现 TUI 管理页。每个通过验证的阶段单独 Git 提交。
 
 ---
 
@@ -812,7 +812,7 @@ src/
 | **0.4-a** | manifest schema、原子读写、安装成功后登记 | 中断/失败不产生假记录；schema 有版本号 |
 | **0.4-b** | inventory/list/doctor 核心逻辑 | 可发现 managed、unmanaged、missing 三类状态 |
 | **0.4-c** | update/remove plan 与 diff 摘要 | 所有写入都经过现有 preview/importer |
-| **0.4-d** | TUI 管理页和非交互命令 | `list --json`、`doctor --json` 可被脚本稳定消费 |
+| **0.4-d** | TUI 管理页和非交互命令 | `list --json`、`doctor --json`、`update --json` 可被脚本稳定消费 |
 | **0.4-e** | 本地目录、Git shorthand、共享路径 | Windows/macOS/Linux 路径测试通过 |
 | **0.4-f** | 文档、迁移说明、发布验证 | README 有完整示例；`npm run typecheck && npm test && npm run build` 通过 |
 
@@ -823,10 +823,10 @@ src/
 - 新安装、覆盖、跳过、失败、取消和恢复都能正确更新或保持 manifest。
 - `list` 的结果与实际目标目录一致；无法读取的目录必须显示 `unknown`，不能静默忽略。
 - `doctor` 能区分路径不存在、权限不足、格式错误、孤儿目录和孤儿记录。
-- `update --dry-run` 不修改缓存、目标目录或 manifest。
+- `update` 默认只生成计划；`--yes` 才执行，`--force` 才允许覆盖本地改动；预览不修改缓存、目标目录或 manifest。
 - `remove` 默认拒绝删除 unmanaged 目录，除非用户显式确认。
 - 所有命令支持 Windows 路径，并保留当前的 Ctrl+C、alternate screen 和错误清理行为。
-- 现有 59 个测试保持通过，并新增 manifest、inventory、diff、doctor、JSON schema 测试。
+- 现有测试保持通过，并新增 manifest、inventory、diff、doctor、update 和 JSON schema 测试。
 
 ### 13.7 不做的事情
 
@@ -839,5 +839,5 @@ src/
 
 1. 当前未发布改动整理为 `0.3.3`：视觉骨架、预览统计修正、文档同步。
 2. `0.4.0-alpha.1`：manifest + list + doctor，只读能力先行。
-3. `0.4.0-beta.1`：update/remove plan、diff、恢复路径。
+3. `0.4.0-beta.1`：update/remove plan、diff、恢复路径（当前核心已完成）。
 4. `0.4.0`：跨平台和 JSON CLI 稳定后发布。
