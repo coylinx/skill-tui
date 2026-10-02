@@ -67,6 +67,26 @@ export interface DoctorReport {
   issues: DoctorIssue[];
 }
 
+export type FileChangeKind = "added" | "removed" | "modified";
+
+export interface FileChange {
+  path: string;
+  kind: FileChangeKind;
+  before?: SkillFileDigest;
+  after?: SkillFileDigest;
+}
+
+export type UpdateStatus = "update" | "current" | "modified" | "missing" | "unavailable";
+
+export interface UpdatePlanItem {
+  record: InstallationRecord;
+  status: UpdateStatus;
+  currentHash?: string;
+  sourceCommit?: string | null;
+  changes: FileChange[];
+  message?: string;
+}
+
 export type AgentId =
   | "claude"
   | "codex"

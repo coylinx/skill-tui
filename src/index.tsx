@@ -16,9 +16,10 @@ import { displayPath } from "./core/agents.js";
 import { doctor } from "./core/doctor.js";
 import { inventory } from "./core/inventory.js";
 import { findInstallations, planRemoval, removeInstallations } from "./core/remove.js";
+import { applyUpdatePlan, disposeUpdatePlans, planUpdates, updateSummary } from "./core/update.js";
 import type { AgentId, InventoryItem } from "./types.js";
 
-type Command = "list" | "doctor" | "remove";
+type Command = "list" | "doctor" | "remove" | "update";
 
 interface ParsedArgs {
   flags: AppFlags;
@@ -27,6 +28,7 @@ interface ParsedArgs {
   json: boolean;
   agent?: AgentId;
   yes: boolean;
+  force: boolean;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -36,6 +38,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let json = false;
   let agent: AgentId | undefined;
   let yes = false;
+  let force = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--dry-run") flags.dryRun = true;
@@ -43,8 +46,9 @@ function parseArgs(argv: string[]): ParsedArgs {
     else if (arg === "--no-backup") flags.noBackup = true;
     else if (arg === "--json") json = true;
     else if (arg === "--yes" || arg === "-y") yes = true;
+    else if (arg === "--force") force = true;
     else if (arg === "--agent") agent = argv[++i] as AgentId | undefined;
-    else if ((arg === "list" || arg === "doctor" || arg === "remove") && !command && !url) command = arg;
+    else if ((arg === "list" || arg === "doctor" || arg === "remove" || arg === "update") && !command && !url) command = arg;
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -55,7 +59,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       url = arg;
     }
   }
-  return { flags, url, command, json, agent, yes };
+  return { flags, url, command, json, agent, yes, force };
 }
 
 function printHelp(): void {
@@ -74,6 +78,7 @@ Options:
   list           List installed and unmanaged Skills (use --json for scripts)
   doctor         Check manifest and installed Skill health (use --json)
   remove <name>  Preview removal of a managed Skill; use --yes to execute
+  update [name]   Preview source changes; use --yes to apply, --force for local edits
   --agent <id>   Limit list to one Agent
   --json         Emit machine-readable output for list/doctor
   -h, --help     Show this help
@@ -99,7 +104,20 @@ function listView(item: InventoryItem) {
   };
 }
 
-function runCommand(command: Command, json: boolean, agent?: AgentId, target?: string, yes = false): number {
+function updateView(plan: Awaited<ReturnType<typeof planUpdates>>[number]) {
+  return {
+    status: plan.item.status,
+    agent: plan.item.record.agent,
+    installName: plan.item.record.installName,
+    targetPath: plan.item.record.targetPath,
+    currentHash: plan.item.currentHash ?? null,
+    sourceCommit: plan.item.sourceCommit ?? null,
+    changes: plan.item.changes.map((change) => ({ path: change.path, kind: change.kind })),
+    message: plan.item.message ?? null,
+  };
+}
+
+async function runCommand(command: Command, json: boolean, agent?: AgentId, target?: string, yes = false, force = false, dryRun = false): Promise<number> {
   if (command === "list") {
     const items = inventory().filter((item) => !agent || item.agent === agent);
     if (json) {
@@ -118,6 +136,29 @@ function runCommand(command: Command, json: boolean, agent?: AgentId, target?: s
       console.log(`${status} ${item.agent.padEnd(10)} ${name.padEnd(29)} ${displayPath(item.targetPath)}`);
     }
     return 0;
+  }
+
+  if (command === "update") {
+    const plans = await planUpdates(target, agent);
+    try {
+      if (!yes || dryRun) {
+        if (json) console.log(JSON.stringify({ schemaVersion: 1, execute: false, summary: updateSummary(plans), items: plans.map(updateView) }, null, 2));
+        else {
+          const summary = updateSummary(plans);
+          console.log(`更新预览：${summary.update} 个可更新，${summary.current} 个已是最新，${summary.modified} 个本地有改动，${summary.unavailable} 个来源不可用`);
+          for (const plan of plans) {
+            const changes = plan.item.changes.length ? ` (${plan.item.changes.map((change) => `${change.kind}:${change.path}`).join(", ")})` : "";
+            console.log(`- ${plan.item.status.padEnd(11)} ${plan.item.record.agent}/${plan.item.record.installName}${changes}${plan.item.message ? ` — ${plan.item.message}` : ""}`);
+          }
+          console.log("确认执行请加 --yes；修改过的目标需要额外加 --force。");
+        }
+        return 0;
+      }
+      const results = applyUpdatePlan(plans, force);
+      if (json) console.log(JSON.stringify({ schemaVersion: 1, execute: true, results }, null, 2));
+      else for (const result of results) console.log(`${result.status}: ${displayPath(result.targetPath)}${result.message ? ` — ${result.message}` : ""}`);
+      return results.some((result) => result.status === "failed") ? 1 : 0;
+    } finally { disposeUpdatePlans(plans); }
   }
 
   if (command === "remove") {
@@ -177,16 +218,14 @@ function printVersion(): void {
 }
 
 function main(): void {
-  const { flags, url, command, json, agent, yes } = parseArgs(process.argv.slice(2));
+  const { flags, url, command, json, agent, yes, force } = parseArgs(process.argv.slice(2));
 
   if (command) {
-    try {
-      process.exitCode = runCommand(command, json, agent, url, yes);
-    } catch (error) {
+    void runCommand(command, json, agent, url, yes, force, flags.dryRun).then((code) => { process.exitCode = code; }).catch((error) => {
       if (json) console.log(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
       else console.error(`skilltui ${command} 失败：`, error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
-    }
+    });
     return;
   }
 
