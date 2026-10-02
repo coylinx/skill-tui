@@ -2,7 +2,7 @@
 
 > 一个用 TypeScript 编写的终端 UI 工具：输入 Skill 仓库的 Git 地址，浏览仓库内的 Skill，选择目标 Agent（Claude Code / Codex / Cursor / ZCode / OpenClaw / Hermes / OpenCode），一键导入到对应 Agent 的 Skill 目录。
 
-> **2026-10-02 实施状态**：当前执行第 13 节。第 1–12 节保留历史设计，其中 Agent 路径与兼容性结论需在扩展目标时重新验证。已交付安装 manifest、事务回滚、Git commit provenance、inventory、`list`、`doctor`、安全的 `remove` 预览/执行、`update` 的来源物化与文件差异，以及首页入口的只读管理台；下一步补齐管理台的更新执行入口和更细的恢复交互。每个通过验证的阶段单独 Git 提交。
+> **2026-10-02 实施状态**：当前执行第 13 节。第 1–12 节保留历史设计，其中 Agent 路径与兼容性结论需在扩展目标时重新验证。已交付安装 manifest、事务回滚、Git commit provenance、inventory、`list`、`doctor`、安全的 `remove` 预览/执行、`update` 的来源物化与文件差异，以及首页管理台的扫描、选择、预览和执行；下一步补齐管理台的细粒度恢复交互。每个通过验证的阶段单独 Git 提交。
 
 ---
 
@@ -812,7 +812,7 @@ src/
 | **0.4-a** | manifest schema、原子读写、安装成功后登记 | 中断/失败不产生假记录；schema 有版本号 |
 | **0.4-b** | inventory/list/doctor 核心逻辑 | 可发现 managed、unmanaged、missing 三类状态 |
 | **0.4-c** | update/remove plan 与 diff 摘要 | 所有写入都经过现有 preview/importer |
-| **0.4-d** | TUI 管理页和非交互命令 | `m` 进入只读管理台；`list --json`、`doctor --json`、`update --json` 可被脚本稳定消费 |
+| **0.4-d** | TUI 管理页和非交互命令 | `m` 进入管理台并可确认执行更新；`list --json`、`doctor --json`、`update --json` 可被脚本稳定消费 |
 | **0.4-e** | 本地目录、Git shorthand、共享路径 | Windows/macOS/Linux 路径测试通过 |
 | **0.4-f** | 文档、迁移说明、发布验证 | README 有完整示例；`npm run typecheck && npm test && npm run build` 通过 |
 
