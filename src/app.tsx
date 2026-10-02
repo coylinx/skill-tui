@@ -8,6 +8,7 @@ import { AgentSelect } from "./components/agent-select.js";
 import { Cloning } from "./components/cloning.js";
 import { Importing } from "./components/importing.js";
 import { Naming } from "./components/naming.js";
+import { Manager } from "./components/manager.js";
 import { Preview } from "./components/preview.js";
 import { Result } from "./components/result.js";
 import { SkillList } from "./components/skill-list.js";
@@ -124,8 +125,12 @@ export function App({
           initialValue={initialUrl}
           history={history}
           onSubmit={(url) => setScreen({ kind: "cloning", url })}
+          onManage={() => setScreen({ kind: "manager" })}
         />
       );
+
+    case "manager":
+      return <Manager onBack={() => setScreen({ kind: "url" })} />;
 
     case "cloning":
       return (

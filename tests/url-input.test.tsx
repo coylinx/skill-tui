@@ -66,4 +66,15 @@ describe("UrlInput", () => {
     unmount();
     expect(submitted).toBe("https://github.com/old/repo.git");
   });
+
+  it("opens the management dashboard from an empty home input", async () => {
+    let opened = false;
+    const { stdin, unmount } = render(
+      <UrlInput history={[]} onSubmit={() => {}} onManage={() => { opened = true; }} />,
+    );
+    stdin.write("m");
+    await flush();
+    unmount();
+    expect(opened).toBe(true);
+  });
 });

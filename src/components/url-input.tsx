@@ -12,6 +12,7 @@ import { Title } from "./title.js";
 
 const HINTS: Hint[] = [
   { key: "Enter", label: "确认" },
+  { key: "m", label: "管理台" },
   { key: "↑↓", label: "历史" },
   { key: "Esc", label: "退出" },
 ];
@@ -20,9 +21,10 @@ interface Props {
   initialValue?: string;
   history: string[];
   onSubmit: (url: string) => void;
+  onManage?: () => void;
 }
 
-export function UrlInput({ initialValue, history, onSubmit }: Props) {
+export function UrlInput({ initialValue, history, onSubmit, onManage }: Props) {
   const { exit } = useApp();
   const [value, setValue] = useState(initialValue ?? "");
   const [histIndex, setHistIndex] = useState<number>(-1); // -1 = editing live
@@ -37,8 +39,10 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
     });
   }
 
-  useInput((_input, key) => {
-    if (key.upArrow) {
+  useInput((input, key) => {
+    if (onManage && input === "m" && value.trim() === "") {
+      onManage();
+    } else if (key.upArrow) {
       recall(-1);
     } else if (key.downArrow) {
       if (histIndex === -1) return;

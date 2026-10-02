@@ -132,6 +132,7 @@ export interface ImportResult {
 // App-level screen state (the state machine in app.tsx).
 export type Screen =
   | { kind: "url" }
+  | { kind: "manager" }
   | { kind: "cloning"; url: string }
   | { kind: "skills"; repoDir: string; url: string }
   | {
