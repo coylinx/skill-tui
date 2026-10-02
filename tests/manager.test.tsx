@@ -27,6 +27,9 @@ describe("Manager", () => {
     stdin.write("u");
     await flush();
     expect(lastFrame() ?? "").toContain("扫描完成：没有可直接更新的目标");
+    stdin.write("b");
+    await flush();
+    expect(lastFrame() ?? "").toContain("没有可恢复的备份");
     unmount();
   });
 

@@ -3,6 +3,7 @@
 import { Box, Text, useApp, useInput } from "ink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { displayPath } from "../core/agents.js";
+import { recentBackups, restoreBackup, type BackupRecord } from "../core/backup.js";
 import { inventory } from "../core/inventory.js";
 import {
   applyUpdatePlan,
@@ -18,6 +19,7 @@ import { Title } from "./title.js";
 
 const OVERVIEW_HINTS: Hint[] = [
   { key: "u", label: "扫描更新" },
+  { key: "b", label: "恢复备份" },
   { key: "r", label: "刷新" },
   { key: "Esc", label: "返回" },
 ];
@@ -34,7 +36,7 @@ const CONFIRM_HINTS: Hint[] = [
 ];
 
 type RowStatus = InventoryItem["status"] | UpdateStatus;
-type ManagerMode = "overview" | "select" | "confirm" | "working";
+type ManagerMode = "overview" | "select" | "confirm" | "backups" | "working";
 
 const statusLabel: Record<RowStatus, { icon: string; label: string; color: string }> = {
   managed: { icon: "●", label: "已管理", color: theme.success },
@@ -68,6 +70,8 @@ export function Manager({ onBack }: { onBack: () => void }) {
   const [cursor, setCursor] = useState(0);
   const [mode, setMode] = useState<ManagerMode>("overview");
   const [force, setForce] = useState(false);
+  const [backups, setBackups] = useState<BackupRecord[]>([]);
+  const [backupCursor, setBackupCursor] = useState(0);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("按 u 扫描已记录来源的变化");
   const plansRef = useRef<PreparedUpdate[]>([]);
@@ -141,6 +145,23 @@ export function Manager({ onBack }: { onBack: () => void }) {
     setNotice(`更新完成：${done} 成功${failed ? `，${failed} 失败` : ""}`);
   }, [actionablePlans, force, refresh, selected]);
 
+  const restoreSelected = useCallback(() => {
+    const record = backups[backupCursor];
+    if (!record) {
+      setNotice("没有可恢复的备份");
+      setMode("overview");
+      return;
+    }
+    try {
+      restoreBackup(record);
+      refresh();
+      setNotice(`已恢复：${record.skillName} → ${displayPath(record.originalPath)}`);
+    } catch (error) {
+      setNotice(`恢复失败：${error instanceof Error ? error.message : String(error)}`);
+      setMode("overview");
+    }
+  }, [backupCursor, backups, refresh]);
+
   useEffect(() => {
     refresh();
     return () => disposeUpdatePlans(plansRef.current);
@@ -151,6 +172,11 @@ export function Manager({ onBack }: { onBack: () => void }) {
       if (key.escape) onBack();
       else if (input === "r") refresh();
       else if (input === "u") void scanUpdates();
+      else if (input === "b") {
+        setBackups(recentBackups(9));
+        setBackupCursor(0);
+        setMode("backups");
+      }
       else if (input === "q") exit();
       return;
     }
@@ -181,6 +207,15 @@ export function Manager({ onBack }: { onBack: () => void }) {
       if (key.escape) setMode("select");
       else if (input.toLowerCase() === "f") setForce((value) => !value);
       else if (key.return) executeSelected();
+      return;
+    }
+    if (mode === "backups") {
+      if (key.escape) setMode("overview");
+      else if (key.upArrow && backups.length > 0) {
+        setBackupCursor((value) => (value - 1 + backups.length) % backups.length);
+      } else if (key.downArrow && backups.length > 0) {
+        setBackupCursor((value) => (value + 1) % backups.length);
+      } else if (key.return) restoreSelected();
     }
   });
 
@@ -199,13 +234,15 @@ export function Manager({ onBack }: { onBack: () => void }) {
         <UpdateSelection plans={actionablePlans} cursor={cursor} selected={selected} notice={notice} />
       ) : mode === "confirm" ? (
         <UpdateConfirmation plans={actionablePlans.filter((plan) => selected.has(plan.item.record.id))} force={force} />
+      ) : mode === "backups" ? (
+        <BackupSelection records={backups} cursor={backupCursor} />
       ) : (
         <Box width={86} flexDirection="column" borderStyle="round" borderColor={theme.borderStrong} paddingX={2} paddingY={2}>
           <Text color={theme.accent} bold>正在更新 Skill…</Text>
           <Text color={theme.textMuted}>写入完成后会重新检查目标状态。</Text>
         </Box>
       )}
-      <FooterHint hints={mode === "overview" ? OVERVIEW_HINTS : mode === "select" ? SELECT_HINTS : CONFIRM_HINTS} />
+      <FooterHint hints={mode === "overview" ? OVERVIEW_HINTS : mode === "select" ? SELECT_HINTS : mode === "confirm" ? CONFIRM_HINTS : [{ key: "Enter", label: "恢复" }, { key: "Esc", label: "返回" }]} />
     </ScreenFrame>
   );
 }
@@ -323,6 +360,27 @@ function UpdateConfirmation({ plans, force }: { plans: PreparedUpdate[]; force: 
           <Text color={force ? theme.warning : theme.success}>{force ? "已开启强制覆盖本地改动" : "安全模式：仅更新未改动目标"}</Text>
         )}
       </Box>
+    </Box>
+  );
+}
+
+function BackupSelection({ records, cursor }: { records: BackupRecord[]; cursor: number }) {
+  return (
+    <Box width={86} flexDirection="column" borderStyle="round" borderColor={theme.borderStrong} paddingX={2} paddingY={1}>
+      <Box justifyContent="space-between">
+        <Text color={theme.accent} bold>选择要恢复的备份</Text>
+        <Text color={theme.textMuted}>↑↓ 浏览 · Enter 恢复</Text>
+      </Box>
+      {records.length === 0 ? (
+        <Text color={theme.textMuted}>没有可恢复的备份。</Text>
+      ) : records.map((record, index) => (
+        <Box key={record.id} backgroundColor={index === cursor ? theme.panelRaised : undefined}>
+          <Text color={index === cursor ? theme.accent : theme.textMuted}>{index === cursor ? "▸" : " "}</Text>
+          <Text color={theme.text} bold={index === cursor}>{` ${record.skillName.padEnd(24).slice(0, 24)}`}</Text>
+          <Text color={theme.textMuted}>{` ${record.agent.padEnd(9)} `}</Text>
+          <Text color={theme.textSubtle}>{displayPath(record.originalPath)}</Text>
+        </Box>
+      ))}
     </Box>
   );
 }
