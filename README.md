@@ -133,7 +133,7 @@ src/
 │   ├── progress-bar.tsx   #   text progress bar widget
 │   ├── spinner.tsx        #   spinner wrapper
 │   ├── result.tsx          #   ⑧ summary + restore backup
-│   └── manager.tsx         #   read-only local Skill management dashboard
+│   └── manager.tsx         #   local Skill management dashboard
 │
 └── core/                  # logic (no UI, fully testable)
     ├── repo.ts            #   git clone / cache / pull
