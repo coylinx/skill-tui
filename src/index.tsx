@@ -10,32 +10,36 @@ import { render } from "ink";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { parseArgs as parseNodeArgs } from "node:util";
 import { App, type AppFlags } from "./app.js";
 import { pruneCache } from "./core/cache.js";
 
 interface ParsedArgs {
   flags: AppFlags;
   url?: string;
+  help: boolean;
+  version: boolean;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const flags: AppFlags = { dryRun: false, overwrite: false, noBackup: false };
-  let url: string | undefined;
-  for (const arg of argv) {
-    if (arg === "--dry-run") flags.dryRun = true;
-    else if (arg === "--overwrite") flags.overwrite = true;
-    else if (arg === "--no-backup") flags.noBackup = true;
-    else if (arg === "--help" || arg === "-h") {
-      printHelp();
-      process.exit(0);
-    } else if (arg === "--version" || arg === "-v") {
-      printVersion();
-      process.exit(0);
-    } else if (!arg.startsWith("-")) {
-      url = arg;
-    }
-  }
-  return { flags, url };
+  const { values, positionals } = parseNodeArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      "dry-run": { type: "boolean" },
+      overwrite: { type: "boolean" },
+      "no-backup": { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+      version: { type: "boolean", short: "v" },
+    },
+  });
+  if (positionals.length > 1) throw new Error("一次只能指定一个仓库地址。使用 --help 查看用法。");
+  return {
+    flags: { dryRun: !!values["dry-run"], overwrite: !!values.overwrite, noBackup: !!values["no-backup"] },
+    url: positionals[0],
+    help: !!values.help,
+    version: !!values.version,
+  };
 }
 
 function printHelp(): void {
@@ -48,7 +52,7 @@ Usage:
   skilltui [git-url] [options]
 
 Options:
-  --dry-run      Preview what would be written, then exit (no changes)
+  --dry-run      Preview and exit without installing or overwriting skills
   --overwrite    Overwrite existing skills (backs up first by default)
   --no-backup    Skip backup on overwrite (requires confirm in preview)
   -h, --help     Show this help
@@ -73,10 +77,15 @@ function printVersion(): void {
   }
 }
 
-function main(): void {
-  const { flags, url } = parseArgs(process.argv.slice(2));
+async function main(): Promise<void> {
+  const { flags, url, help, version } = parseArgs(process.argv.slice(2));
+  if (help) return printHelp();
+  if (version) return printVersion();
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error("交互模式需要终端（TTY）。请在终端中运行 skilltui，或使用 --help 查看用法。");
+  }
 
-  // Prune cached repos older than 7 days before entering the TUI, so disk
+  // Prune cached repos older than 2 hours before entering the TUI, so disk
   // usage from ~/.skill-tui/cache/ stays bounded. Best-effort, non-fatal.
   try {
     pruneCache();
@@ -84,39 +93,31 @@ function main(): void {
     // ignore — pruning must never block the app
   }
 
-  // Enter the alternate screen buffer so the TUI starts on a clean screen
-  // (previous terminal content is hidden) and restored when we exit —
-  // like vim/htop. Supported by Windows Terminal, mintty (Git Bash), etc.
-  const stdout = process.stdout;
-  stdout.write("\x1b[?1049h\x1b[2J\x1b[3J\x1b[H");
-
+  // Ink owns raw mode, Ctrl+C handling, and alternate-screen restoration.
   const instance = render(<App initialUrl={url} flags={flags} />, {
-    exitOnCtrlC: false,
+    alternateScreen: true,
+    exitOnCtrlC: true,
   });
-
-  const leaveAltScreen = (): void => {
-    stdout.write("\x1b[?1049l");
-  };
-  // Restore the screen on any exit path.
-  process.on("exit", leaveAltScreen);
-  process.on("SIGINT", () => {
+  const onSigint = () => {
+    process.exitCode = 130;
     instance.unmount();
-    leaveAltScreen();
-    process.exit(0);
-  });
-
-  // Guard against unhandled rejections killing the process ugly.
-  const onFatal = (err: unknown): void => {
-    instance.unmount();
-    leaveAltScreen();
-    console.error(
-      "\nskilltui 遇到错误：",
-      err instanceof Error ? err.message : String(err),
-    );
-    process.exit(1);
   };
-  process.on("unhandledRejection", onFatal);
-  process.on("uncaughtException", onFatal);
+  const onSigterm = () => {
+    process.exitCode = 143;
+    instance.unmount();
+  };
+  process.once("SIGINT", onSigint);
+  process.once("SIGTERM", onSigterm);
+  try {
+    const output = await instance.waitUntilExit();
+    if (typeof output === "string") process.stdout.write(output);
+  } finally {
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
+  }
 }
 
-main();
+void main().catch((error: unknown) => {
+  console.error("skilltui：", error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});

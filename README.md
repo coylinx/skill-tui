@@ -20,6 +20,9 @@ All agents share the same Skill format: a directory containing a `SKILL.md` with
 
 ## Install
 
+Requires **Node.js 22+** and **Git**. Interactive mode needs a terminal (TTY);
+`--help` and `--version` also work when piped or redirected.
+
 ```sh
 npm install -g skill-tui
 ```
@@ -49,19 +52,24 @@ skilltui --version
 1. **URL input** — enter a Skill repo's git address (↑/↓ recalls history). Launched with `skilltui <url>` to skip this step.
 2. **Clone** — shallow-cloned to `~/.skill-tui/cache/<hash>/`. Cache is pruned automatically: entries older than **2 hours** are deleted on startup.
 3. **Skill list** — discovered skills with descriptions. **Nothing is pre-selected** — use Space to explicitly opt in, `a` to toggle all.
-4. **Naming** — rename each selected skill's install folder (the `/command` name). ↑/↓ to switch between fields, type directly to edit, Enter to confirm. Names are sanitized to `[a-z0-9-]`.
+4. **Naming** — rename each selected skill's install folder (the `/command` name). ↑/↓ to switch between fields, type directly to edit, Enter to confirm. Names are sanitized to `[a-z0-9-]`; empty or duplicate names must be corrected before continuing.
 5. **Agent select** — target agents with three-state detection: ✓ installed / ⚠ configured-only / ✗ missing. **Nothing is pre-selected** — opt in with Space.
 6. **Preview** — the confirmation gate: lists every target path + the new folder name + action before any write. Press `o` to toggle overwrite mode.
 7. **Import** — copies with a live progress bar; overwrites are backed up first.
 8. **Result** — summary. `r` or `Esc` returns to the home screen for another import; `o` opens the install dir; `b` restores a backup; `q` quits.
 
+Esc returns one screen at a time and retains confirmed selections and names.
+During cloning, Esc cancels the Git operation and returns home. Imports finish
+before returning to the result screen.
+
 ### Safety
 
 - **Explicit selection**: neither skills nor agents are pre-selected — you opt in to each with Space, preventing accidental mass installs.
 - **Preview-first**: nothing is written until you confirm the exact paths on the preview screen.
-- **`--dry-run`**: prints the plan and exits without touching disk.
+- **`--dry-run`**: prints the plan after restoring your terminal and exits without installing or overwriting skills. Repository cache and URL history may still be updated.
 - **Backups**: overwriting a skill first copies the old directory to `~/.skill-tui/backup/<agent>/<name>/<timestamp>/`, recorded in `~/.skill-tui/backup/index.json`. Restore from the result screen with `b`.
 - **Skip by default**: existing skills are left alone unless you enable overwrite.
+- **Validated replacement**: imports are copied and validated in a temporary directory before replacing the target. Failed copies leave the previous install intact; failed replacements roll back. Backups use unique folders, including for repeated overwrites in the same second.
 - **Cache auto-prune**: cloned repos in `~/.skill-tui/cache/` older than 2 hours are deleted on each launch.
 
 ### Theme
@@ -75,13 +83,14 @@ Amber-orange accent (`#f5a623`) on a dark background, with a dual-tone block-art
 ### Build from source
 
 ```sh
-git clone https://github.com/your-username/skill-tui.git
+git clone https://github.com/coylinx/skill-tui.git
 cd skill-tui
 npm install        # install deps
 npm run dev        # run via tsx (src/index.tsx)
 npm test           # run vitest suite
 npm run typecheck  # tsc --noEmit
 npm run build      # tsup → dist/index.js
+npm run test:terminal # build + real PTY flow (Linux/macOS, Python 3 required)
 npm link           # make `skilltui` available globally for testing
 ```
 
@@ -129,6 +138,7 @@ src/
     ├── agents.ts          #   agent registry + 3-state detection
     ├── detect.ts          #   executable-on-PATH probe (which/where)
     ├── importer.ts        #   plan() + importTask() with backup
+    ├── directory.ts       #   staged directory replacement + rollback
     ├── backup.ts          #   backup + restore
     ├── history.ts         #   URL history persistence
     └── paths.ts           #   cross-platform paths (~/.skill-tui/, agent dirs)
@@ -145,12 +155,32 @@ src/
 ### Testing
 
 ```sh
-npm test           # 35+ tests via vitest + ink-testing-library
+npm test           # unit + offline integration tests via vitest + ink-testing-library
+npm run test:terminal # actual keyboard input and screen restoration in a PTY
 ```
 
-Tests cover: skill discovery (3 repo layouts), frontmatter parsing, agent detection logic, importer plan/fresh/skip/overwrite/backup/restore, preview screen rendering, naming screen interaction, and a full e2e flow with a cached real repo.
+Tests cover skill discovery, env-aware agent paths, importer planning and rollback,
+backup and restore, duplicate names, URL history navigation, CLI arguments, and
+the full app flow using a disposable local Git repository. Test installs and
+backups use temporary home directories, without changing your real agent data.
+
+CI runs typecheck, tests, build, and CLI smoke checks on Linux, macOS, and Windows
+with Node 22 and 24. Linux also drives the built CLI through a real PTY, checking
+dry-run output, overwrite/backup/restore, returning home, Ctrl+C, and SIGTERM.
 
 ## Changelog
+
+### Unreleased
+- Fix `--overwrite` being ignored and correct the no-backup preview label
+- Preserve confirmed selections and names when navigating back; returning home no longer restarts the initial URL
+- Cancel Git on leaving the clone screen and ignore stale async results
+- Stage and validate imports before replacing existing installs, with rollback on failure
+- Keep separate backups for rapid overwrites and stage backup restoration
+- Reject empty/duplicate install names and invalid target paths
+- Recall URL history newest-first and restore the draft when returning down
+- Keep dry-run plans visible after restoring the terminal; handle Ctrl+C, SIGTERM, invalid CLI arguments, and missing TTYs
+- Use declared frontmatter names for single-skill repositories cached under URL hashes
+- Require Node 22+ to match Ink 7; test Node 22/24 and real Linux PTY flows
 
 ### 0.3.1
 - Rename bin command from `skill` to `skilltui` to avoid conflict with Linux procps-ng `skill` command

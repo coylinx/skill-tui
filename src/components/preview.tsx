@@ -17,6 +17,7 @@ interface Props {
   tasks: ImportTask[];
   dryRun: boolean;
   noBackup: boolean;
+  initialOverwrite?: boolean;
   onConfirm: (overwrite: boolean) => void;
   onBack: () => void;
 }
@@ -27,9 +28,9 @@ const HINTS = (dryRun: boolean): Hint[] => [
   { key: "Esc", label: "返回" },
 ];
 
-export function Preview({ tasks, dryRun, noBackup, onConfirm, onBack }: Props) {
+export function Preview({ tasks, dryRun, noBackup, initialOverwrite = false, onConfirm, onBack }: Props) {
   const { exit } = useApp();
-  const [overwrite, setOverwrite] = useState(false);
+  const [overwrite, setOverwrite] = useState(initialOverwrite);
 
   const items: PlanItem[] = useMemo(
     () => plan(tasks, overwrite, noBackup),
@@ -47,9 +48,8 @@ export function Preview({ tasks, dryRun, noBackup, onConfirm, onBack }: Props) {
       onBack();
     } else if (key.return) {
       if (dryRun) {
-        // print the plan to stdout and exit (no writes)
-        printDryRun(items, overwrite);
-        exit();
+        // The CLI prints this after Ink restores the original terminal screen.
+        exit(formatDryRun(items, overwrite));
       } else {
         onConfirm(overwrite);
       }
@@ -119,7 +119,7 @@ export function Preview({ tasks, dryRun, noBackup, onConfirm, onBack }: Props) {
 
         <Box marginTop={1}>
           <Text dimColor>
-            已存在处理：{overwrite ? "覆盖+备份" : "跳过（默认）"} — 按 o 切换
+            已存在处理：{overwrite ? (noBackup ? "覆盖（不备份）" : "覆盖+备份") : "跳过（默认）"} — 按 o 切换
           </Text>
         </Box>
       </Box>
@@ -138,9 +138,8 @@ function groupBy<T>(arr: T[], key: (t: T) => string): Record<string, T[]> {
   return out;
 }
 
-function printDryRun(items: PlanItem[], overwrite: boolean): void {
-  console.log("\n[dry-run] 导入计划（不会写入磁盘）：");
-  console.log(`覆盖模式: ${overwrite ? "是" : "否"}\n`);
+export function formatDryRun(items: PlanItem[], overwrite: boolean): string {
+  const lines = ["\n[dry-run] 导入计划（不会安装或覆盖 Skill）：", `覆盖模式: ${overwrite ? "是" : "否"}\n`];
   for (const item of items) {
     const tag = item.exists
       ? item.action === "overwrite"
@@ -148,7 +147,7 @@ function printDryRun(items: PlanItem[], overwrite: boolean): void {
         : "SKIP"
       : "INSTALL";
     const name = item.skill.installName ?? item.skill.name;
-    console.log(`  ${tag.padEnd(9)} ${item.agent}/${name} → ${item.targetPath}`);
+    lines.push(`  ${tag.padEnd(9)} ${item.agent}/${name} → ${item.targetPath}`);
   }
-  console.log("");
+  return lines.join("\n") + "\n";
 }

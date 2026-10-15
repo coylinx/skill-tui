@@ -8,23 +8,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { plan, importTask } from "../src/core/importer.js";
 import { backupExisting, restoreBackup, loadBackupIndex } from "../src/core/backup.js";
-import { agentSkillsDirs, skillTargetPath } from "../src/core/paths.js";
-import type { AgentId, ImportTask, Skill } from "../src/types.js";
+import { skillTargetPath } from "../src/core/paths.js";
+import type { ImportTask, Skill } from "../src/types.js";
 
-// We test against a temp "agent" by monkeypatching the target path via a
-// custom skill whose dir we control. Because skillTargetPath is keyed by
-// agent id + skill.name and points at the real home dir, we instead drive
-// the importer through the public surface but redirect by using a throwaway
-// skill name and cleaning up under the real ~/.claude/skills.
-//
-// To keep tests hermetic and avoid touching real agent dirs, we exercise the
-// logic by constructing ImportTasks whose skill.dir is a temp source, then
-// assert on plan() output (which is pure) and on a fresh-install into a
-// temp dir by calling copySkillDir indirectly via a controlled path.
-//
-// Since importTask writes to the real agentSkillsDirs, we instead verify the
-// pure plan() thoroughly and validate copy semantics through a temp agent
-// dir by temporarily overriding.
+// tests/setup.ts redirects os.homedir() to an isolated disposable directory.
 
 let tmp: string;
 
@@ -87,6 +74,37 @@ describe("plan()", () => {
 });
 
 describe("importTask() fresh install", () => {
+  it("leaves no partial install when SKILL.md is invalid", () => {
+    const skill = makeSkill("invalid-fresh", "invalid");
+    writeFileSync(path.join(skill.dir, "SKILL.md"), "---\nname: [broken\n---\n");
+    const target = skillTargetPath("claude", skill.name);
+    expect(importTask({ skill, agent: "claude" }, { overwrite: false, noBackup: false }).status).toBe("failed");
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it("preserves the existing install when the replacement fails validation", () => {
+    const skill = makeSkill("invalid-overwrite", "invalid");
+    const target = skillTargetPath("claude", skill.name);
+    mkdirSync(target, { recursive: true });
+    writeFileSync(path.join(target, "SKILL.md"), "original content");
+    rmSync(path.join(skill.dir, "SKILL.md"));
+    const result = importTask({ skill, agent: "claude" }, { overwrite: true, noBackup: true });
+    expect(result.status).toBe("failed");
+    expect(readFileSync(path.join(target, "SKILL.md"), "utf8")).toBe("original content");
+  });
+
+  it("copies supporting files but excludes Git metadata and dependencies", () => {
+    const skill = makeSkill("copy-assets", "assets");
+    for (const name of ["scripts", ".git", "node_modules"]) {
+      mkdirSync(path.join(skill.dir, name));
+      writeFileSync(path.join(skill.dir, name, "file.txt"), "content");
+    }
+    const result = importTask({ skill, agent: "claude" }, { overwrite: false, noBackup: false });
+    expect(result.status).toBe("done");
+    expect(existsSync(path.join(result.targetPath, "scripts", "file.txt"))).toBe(true);
+    expect(existsSync(path.join(result.targetPath, ".git"))).toBe(false);
+    expect(existsSync(path.join(result.targetPath, "node_modules"))).toBe(false);
+  });
   it("copies a skill into the agent dir and validates", () => {
     const skill = makeSkill("imp-fresh-xyz", "fresh install test");
     const target = skillTargetPath("claude", skill.name);
@@ -135,6 +153,18 @@ describe("importTask() fresh install", () => {
 });
 
 describe("backup + restore", () => {
+  it("keeps independent backups when the same skill is overwritten rapidly", () => {
+    const skill = makeSkill("rapid-backups", "new");
+    const target = skillTargetPath("claude", skill.name);
+    mkdirSync(target, { recursive: true });
+    writeFileSync(path.join(target, "SKILL.md"), "first version");
+    const first = backupExisting("claude", skill.name, target)!;
+    writeFileSync(path.join(target, "SKILL.md"), "second version");
+    const second = backupExisting("claude", skill.name, target)!;
+    expect(first).not.toBe(second);
+    expect(readFileSync(path.join(first, "SKILL.md"), "utf8")).toBe("first version");
+    expect(readFileSync(path.join(second, "SKILL.md"), "utf8")).toBe("second version");
+  });
   it("records a backup in the index and can restore it", () => {
     const skill = makeSkill("imp-restore-xyz", "restore test");
     const target = skillTargetPath("claude", skill.name);

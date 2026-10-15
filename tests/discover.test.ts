@@ -55,6 +55,11 @@ describe("discoverSkills", () => {
     expect(found.map((s) => s.name)).toEqual(["my-plugin"]);
   });
 
+  it("uses the declared name rather than a hashed cache folder for root skills", () => {
+    writeFileSync(path.join(root, "SKILL.md"), "---\nname: useful-skill\ndescription: d\n---\nbody\n");
+    expect(discoverSkills(root)[0].name).toBe("useful-skill");
+  });
+
   it("skips .git and node_modules during recursive fallback", () => {
     mkdirSync(path.join(root, ".git", "hooks"), { recursive: true });
     writeFileSync(

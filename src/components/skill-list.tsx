@@ -22,13 +22,14 @@ const HINTS: Hint[] = [
 interface Props {
   url: string;
   skills: Skill[];
+  initialSelected?: string[];
   onConfirm: (selectedIds: string[]) => void;
   onBack?: () => void;
 }
 
-export function SkillList({ url, skills, onConfirm, onBack }: Props) {
+export function SkillList({ url, skills, initialSelected = [], onConfirm, onBack }: Props) {
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(), // default: nothing selected — user must explicitly opt in
+    () => new Set(initialSelected),
   );
   const [notice, setNotice] = useState<string>("");
 

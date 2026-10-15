@@ -57,9 +57,9 @@ function fromSkillsDir(root: string): Skill[] {
 function fromRoot(root: string): Skill[] | null {
   const file = path.join(root, SKILL_FILE);
   if (!existsSync(file)) return null;
-  // Use the repo directory name as the skill name.
+  // Cache directories are URL hashes; prefer the declared skill name.
   const parsed = parseSkillFile(file);
-  const name = path.basename(root);
+  const name = parsed.name;
   return [
     {
       id: name,

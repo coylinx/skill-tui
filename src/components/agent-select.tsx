@@ -20,6 +20,7 @@ const HINTS: Hint[] = [
 ];
 
 interface Props {
+  initialSelected?: AgentId[];
   onConfirm: (agentIds: AgentId[]) => void;
   onBack: () => void;
 }
@@ -30,9 +31,9 @@ const STATUS_GLYPH: Record<AgentInfo["status"], { ch: string; color: string; tex
   missing: { ch: "✗", color: theme.danger, text: "未检测" },
 };
 
-export function AgentSelect({ onConfirm, onBack }: Props) {
+export function AgentSelect({ initialSelected = [], onConfirm, onBack }: Props) {
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initialSelected));
   const [notice, setNotice] = useState<string>("");
 
   // Probe agent installation state on mount.
@@ -41,9 +42,6 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
     probeAgents().then((info) => {
       if (!alive) return;
       setAgents(info);
-      // Default-select NOTHING — the user must explicitly opt in to each
-      // target agent. Pre-selecting all would cause accidental mass installs.
-      setSelected(new Set());
     });
     return () => {
       alive = false;

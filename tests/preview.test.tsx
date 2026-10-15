@@ -7,7 +7,7 @@ import React from "react";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Preview } from "../src/components/preview.js";
+import { Preview, formatDryRun } from "../src/components/preview.js";
 import { skillTargetPath } from "../src/core/paths.js";
 import type { ImportTask, Skill } from "../src/types.js";
 
@@ -29,6 +29,25 @@ function makeSkill(name: string): Skill {
 }
 
 describe("Preview screen", () => {
+  it("honors initial overwrite mode and accurately labels no-backup mode", () => {
+    const skill = makeSkill("preview-flags");
+    const target = skillTargetPath("claude", skill.name);
+    mkdirSync(target, { recursive: true });
+    const tasks: ImportTask[] = [{ skill, agent: "claude" }];
+    const { lastFrame } = render(
+      <Preview tasks={tasks} dryRun={false} noBackup initialOverwrite onConfirm={() => {}} onBack={() => {}} />,
+    );
+    expect(lastFrame()).toContain("覆盖 1 项");
+    expect(lastFrame()).toContain("覆盖（不备份）");
+    expect(lastFrame()).not.toContain("覆盖+备份");
+  });
+
+  it("formats a readable dry-run plan for output after terminal restoration", () => {
+    const skill = makeSkill("dry-run-format");
+    const output = formatDryRun([{ skill, agent: "claude", targetPath: "/example/skills/dry-run-format", exists: false, action: "skip" }], false);
+    expect(output).toContain("[dry-run]");
+    expect(output).toContain("INSTALL   claude/dry-run-format → /example/skills/dry-run-format");
+  });
   it("renders install items with + glyph for fresh targets", () => {
     const skill = makeSkill("preview-fresh-xyz");
     const tasks: ImportTask[] = [{ skill, agent: "claude" }];

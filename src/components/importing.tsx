@@ -41,6 +41,7 @@ export function Importing({ tasks, overwrite, noBackup, onComplete }: Props) {
         setCurrent(`${task.skill.installName ?? task.skill.name} → ${task.agent}`);
         // yield to the event loop so the UI can repaint between tasks
         await new Promise((r) => setTimeout(r, 0));
+        if (cancelled) return;
         const res = importTask(task, opts);
         if (cancelled) return;
         acc.current.push(res);

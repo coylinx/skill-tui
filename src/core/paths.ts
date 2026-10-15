@@ -72,6 +72,12 @@ export const agentSkillsDirs: Record<string, string> = {
 
 /** Resolve a skill's target directory for a given agent. */
 export function skillTargetPath(agent: string, skillName: string): string {
+  if (!Object.hasOwn(agentSkillsDirs, agent)) {
+    throw new Error(`未知 Agent：${agent}`);
+  }
+  if (!skillName || skillName === "." || skillName === ".." || /[/\\\0]/.test(skillName) || path.isAbsolute(skillName)) {
+    throw new Error(`无效的安装名称：${skillName}`);
+  }
   return path.join(agentSkillsDirs[agent], skillName);
 }
 

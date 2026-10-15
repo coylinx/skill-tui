@@ -6,11 +6,20 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import os from "node:os";
 import path from "node:path";
-import { codexRoot, hermesRoot, opencodeSkillsDir, agentSkillsDirs } from "../src/core/paths.js";
+import { codexRoot, hermesRoot, opencodeSkillsDir, agentSkillsDirs, skillTargetPath } from "../src/core/paths.js";
 
 const home = os.homedir();
 
 describe("env-aware paths (imported from paths.ts)", () => {
+  it.each(["", ".", "..", "../escape", "nested/skill", "nested\\skill", "bad\0name"])(
+    "rejects invalid install folder %j", (name) => {
+      expect(() => skillTargetPath("claude", name)).toThrow("无效的安装名称");
+    },
+  );
+
+  it("rejects unknown agents", () => {
+    expect(() => skillTargetPath("unknown", "skill")).toThrow("未知 Agent");
+  });
   const saved: Record<string, string | undefined> = {};
 
   beforeEach(() => {

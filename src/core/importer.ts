@@ -8,21 +8,22 @@
 //           existing dir first (unless noBackup). All agents are Tier-1:
 //           pure directory copy, no extra wiring needed.
 
-import { existsSync, rmSync, cpSync, mkdirSync } from "node:fs";
+import { existsSync, cpSync } from "node:fs";
 import path from "node:path";
 import { skillTargetPath } from "./paths.js";
 import { backupExisting } from "./backup.js";
 import { parseSkillFile } from "./frontmatter.js";
+import { pathExists, replaceDirectory } from "./directory.js";
 import type { ImportResult, ImportTask, OverwriteMode, PlanItem } from "../types.js";
 
 const SKIP_DIRS = new Set([".git", "node_modules"]);
 
 /** Recursively copy a skill directory, skipping .git / node_modules. */
 function copySkillDir(src: string, dest: string): void {
-  mkdirSync(dest, { recursive: true });
   cpSync(src, dest, {
     recursive: true,
     force: true,
+    verbatimSymlinks: true,
     filter: (s) => {
       const base = path.basename(s);
       return !SKIP_DIRS.has(base);
@@ -51,7 +52,7 @@ export function plan(
   return tasks.map(({ skill, agent }) => {
     const installName = skill.installName ?? skill.name;
     const targetPath = skillTargetPath(agent, installName);
-    const exists = existsSync(targetPath);
+    const exists = pathExists(targetPath);
     let action: OverwriteMode;
     let backupPath: string | undefined;
     if (!exists) {
@@ -76,33 +77,10 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
   const { skill, agent } = task;
   const installName = skill.installName ?? skill.name;
   const targetPath = skillTargetPath(agent, installName);
-  const exists = existsSync(targetPath);
-
-  // Case 1: target absent → fresh install.
-  if (!exists) {
-    try {
-      copySkillDir(skill.dir, targetPath);
-      if (!validateTarget(targetPath)) {
-        return {
-          status: "failed",
-          targetPath,
-          action: "skip",
-          message: "导入后校验失败：SKILL.md 缺失或无法解析",
-        };
-      }
-      return { status: "done", targetPath, action: "skip" };
-    } catch (e) {
-      return {
-        status: "failed",
-        targetPath,
-        action: "skip",
-        message: errMsg(e),
-      };
-    }
-  }
+  const exists = pathExists(targetPath);
 
   // Case 2: target exists + not overwrite → skip.
-  if (!opts.overwrite) {
+  if (exists && !opts.overwrite) {
     return {
       status: "skipped",
       targetPath,
@@ -111,38 +89,30 @@ export function importTask(task: ImportTask, opts: ImportOptions): ImportResult 
     };
   }
 
-  // Case 3: target exists + overwrite → backup then replace.
+  const action = exists ? "overwrite" : "skip";
   let backupPath: string | undefined;
-  if (!opts.noBackup) {
-    try {
-      backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
-    } catch (e) {
-      return {
-        status: "failed",
-        targetPath,
-        action: "overwrite",
-        message: `备份失败：${errMsg(e)}`,
-      };
-    }
-  }
   try {
-    rmSync(targetPath, { recursive: true, force: true });
-    copySkillDir(skill.dir, targetPath);
-    if (!validateTarget(targetPath)) {
-      return {
-        status: "failed",
-        targetPath,
-        action: "overwrite",
-        backupPath,
-        message: "导入后校验失败：SKILL.md 缺失或无法解析",
-      };
-    }
-    return { status: "done", targetPath, action: "overwrite", backupPath };
+    replaceDirectory(skill.dir, targetPath, {
+      copy: copySkillDir,
+      validate(staged) {
+        if (!validateTarget(staged)) throw new Error("导入校验失败：SKILL.md 缺失或无法解析");
+      },
+      beforeReplace() {
+        if (exists && !opts.noBackup) {
+          try {
+            backupPath = backupExisting(agent, installName, targetPath) ?? undefined;
+          } catch (error) {
+            throw new Error(`备份失败：${errMsg(error)}`);
+          }
+        }
+      },
+    });
+    return { status: "done", targetPath, action, backupPath };
   } catch (e) {
     return {
       status: "failed",
       targetPath,
-      action: "overwrite",
+      action,
       backupPath,
       message: errMsg(e),
     };

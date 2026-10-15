@@ -4,7 +4,7 @@
 // - If not cached: `git clone --depth 1 <url> <dest>` (shallow, fast).
 // Errors are surfaced with friendly, classified messages.
 
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, rmSync, utimesSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -15,7 +15,7 @@ export interface CloneResult {
   cached: boolean;
 }
 
-function runGit(args: string[], cwd?: string): Promise<void> {
+function runGit(args: string[], cwd?: string, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn("git", args, {
       cwd,
@@ -24,7 +24,8 @@ function runGit(args: string[], cwd?: string): Promise<void> {
       // shell avoids the Node DEP0190 deprecation and is safe here since
       // args are constructed internally (never user input passed raw).
       shell: false,
-      windowsVerbatimArguments: process.platform === "win32",
+      signal,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     });
     let stderr = "";
     child.stderr?.on("data", (d) => {
@@ -45,19 +46,9 @@ function runGit(args: string[], cwd?: string): Promise<void> {
   });
 }
 
-async function gitAvailable(): Promise<boolean> {
-  try {
-    await runGit(["--version"]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function cloneRepo(url: string): Promise<CloneResult> {
-  if (!(await gitAvailable())) {
-    throw new Error("未找到 git 可执行文件，请先安装 git 并加入 PATH。");
-  }
+export async function cloneRepo(url: string, { signal }: { signal?: AbortSignal } = {}): Promise<CloneResult> {
+  signal?.throwIfAborted();
+  await runGit(["--version"], undefined, signal);
 
   const id = await urlHash(url);
   const dir = path.join(cacheDir, id);
@@ -66,16 +57,20 @@ export async function cloneRepo(url: string): Promise<CloneResult> {
   if (existsSync(dir) && existsSync(path.join(dir, ".git"))) {
     // Try a fast-forward update; fall back to a fresh clone on failure.
     try {
-      await runGit(["pull", "--ff-only"], dir);
+      await runGit(["pull", "--ff-only"], dir, signal);
+      const now = new Date();
+      utimesSync(dir, now, now);
       return { dir, cached: true };
     } catch {
+      signal?.throwIfAborted();
       rmSync(dir, { recursive: true, force: true });
     }
   }
 
   try {
-    await runGit(["clone", "--depth", "1", url, dir]);
+    await runGit(["clone", "--depth", "1", "--", url, dir], undefined, signal);
   } catch (err) {
+    signal?.throwIfAborted();
     throw new Error(
       `克隆失败：${err instanceof Error ? err.message : String(err)}\n` +
         `请检查地址是否正确、网络是否通畅。`,

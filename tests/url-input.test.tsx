@@ -8,6 +8,26 @@ import { UrlInput } from "../src/components/url-input.js";
 const flush = () => new Promise((r) => setTimeout(r, 30));
 
 describe("UrlInput", () => {
+  it("recalls newest to oldest and restores the draft when returning down", async () => {
+    const { stdin, lastFrame } = render(
+      <UrlInput history={["https://newest/repo.git", "https://older/repo.git"]} onSubmit={() => {}} />,
+    );
+    await flush();
+    stdin.write("draft-url");
+    await flush();
+    stdin.write("\x1b[A");
+    await flush();
+    expect(lastFrame()).toContain("https://newest/repo.git");
+    stdin.write("\x1b[A");
+    await flush();
+    expect(lastFrame()).toContain("https://older/repo.git");
+    stdin.write("\x1b[B");
+    await flush();
+    expect(lastFrame()).toContain("https://newest/repo.git");
+    stdin.write("\x1b[B");
+    await flush();
+    expect(lastFrame()).toContain("draft-url");
+  });
   it("renders the prompt and placeholder", () => {
     const { lastFrame } = render(<UrlInput history={[]} onSubmit={() => {}} />);
     const frame = lastFrame() ?? "";

@@ -1,6 +1,6 @@
 // Test the Naming screen renders and confirms sanitized names.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
 import React from "react";
 import { Naming } from "../src/components/naming.js";
@@ -19,6 +19,29 @@ function makeSkill(name: string): Skill {
 }
 
 describe("Naming screen", () => {
+  it("blocks names that collide after sanitization", async () => {
+    const onConfirm = vi.fn();
+    const { stdin, lastFrame } = render(
+      <Naming skills={[makeSkill("Code Review"), makeSkill("code-review")]} onConfirm={onConfirm} onBack={() => {}} />,
+    );
+    await flush();
+    stdin.write("\r");
+    await flush();
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(lastFrame()).toContain("安装名称重复");
+  });
+
+  it("blocks names that sanitize to an empty string", async () => {
+    const onConfirm = vi.fn();
+    const { stdin, lastFrame } = render(
+      <Naming skills={[makeSkill("!!!")]} onConfirm={onConfirm} onBack={() => {}} />,
+    );
+    await flush();
+    stdin.write("\r");
+    await flush();
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(lastFrame()).toContain("安装名称不能为空");
+  });
   it("renders each skill with a bordered input box", () => {
     const skills = [makeSkill("code-review"), makeSkill("deploy")];
     const { lastFrame, unmount } = render(

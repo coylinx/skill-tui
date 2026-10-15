@@ -1,9 +1,8 @@
-// Top-level app state machine. Wires screens together.
-// Phase 1 implements: url → cloning (stub) → (skills placeholder).
-// Later phases extend the switch with skills/agents/preview/importing/result.
+// Top-level app state machine. Each screen owns its back navigation.
 
 import { useInput } from "ink";
 import { useEffect, useRef, useState } from "react";
+import path from "node:path";
 import { AgentSelect } from "./components/agent-select.js";
 import { Cloning } from "./components/cloning.js";
 import { Importing } from "./components/importing.js";
@@ -40,7 +39,9 @@ function buildTasks(
 }
 
 export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlags }) {
-  const [screen, setScreen] = useState<Screen>({ kind: "url" });
+  const [screen, setScreen] = useState<Screen>(() =>
+    initialUrl?.trim() ? { kind: "cloning", url: initialUrl.trim() } : { kind: "url" },
+  );
   const [history, setHistory] = useState<string[]>([]);
   const [cloneError, setCloneError] = useState<string | undefined>();
   const [cloneCachePath, setCloneCachePath] = useState<string>("");
@@ -48,6 +49,8 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
   // Skills after optional renaming (installName set). Used when building
   // import tasks so the target folder reflects the user's chosen name.
   const [renamedSkills, setRenamedSkills] = useState<Skill[]>([]);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<AgentId[]>([]);
   // Remember the skills-screen context (repoDir + url) so the preview's
   // back button can return to agent-select → skills without losing state.
   const skillsCtx = useRef<{ repoDir: string; url: string }>({ repoDir: "", url: "" });
@@ -60,25 +63,40 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
   // Drive cloning when we enter that screen.
   useEffect(() => {
     if (screen.kind !== "cloning") return;
+    const controller = new AbortController();
+    let alive = true;
     setCloneError(undefined);
-    // Pre-compute the cache path for display.
-    urlHash(screen.url).then((h) => setCloneCachePath(`${cacheDir}/${h}`));
-    cloneRepo(screen.url)
+    setCloneCachePath("");
+    urlHash(screen.url).then((h) => {
+      if (alive) setCloneCachePath(path.join(cacheDir, h));
+    });
+    cloneRepo(screen.url, { signal: controller.signal })
       .then(async (res) => {
-        await saveHistory(screen.url);
+        if (!alive) return;
         const found = discoverSkills(res.dir);
+        await saveHistory(screen.url);
+        const updatedHistory = await loadHistory();
+        if (!alive) return;
+        setHistory(updatedHistory);
         setSkills(found);
+        setRenamedSkills([]);
+        setSelectedSkillIds([]);
+        setSelectedAgentIds([]);
         skillsCtx.current = { repoDir: res.dir, url: screen.url };
         setScreen({ kind: "skills", repoDir: res.dir, url: screen.url });
       })
       .catch((err: unknown) => {
-        setCloneError(err instanceof Error ? err.message : String(err));
+        if (alive) setCloneError(err instanceof Error ? err.message : String(err));
       });
+    return () => {
+      alive = false;
+      controller.abort();
+    };
   }, [screen]);
 
-  // Global Esc returns to URL input from cloning error / skills placeholder.
+  // Other screens handle Esc locally; importing cannot be interrupted by Esc.
   useInput((_input, key) => {
-    if (key.escape && screen.kind !== "url") {
+    if (key.escape && screen.kind === "cloning") {
       setScreen({ kind: "url" });
     }
   });
@@ -87,7 +105,6 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
     case "url":
       return (
         <UrlInput
-          initialValue={initialUrl}
           history={history}
           onSubmit={(url) => setScreen({ kind: "cloning", url })}
         />
@@ -103,20 +120,23 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
         <SkillList
           url={screen.url}
           skills={skills}
-          onConfirm={(selectedIds) =>
+          initialSelected={selectedSkillIds}
+          onBack={() => setScreen({ kind: "url" })}
+          onConfirm={(selectedIds) => {
+            setSelectedSkillIds(selectedIds);
             setScreen({
               kind: "naming",
               repoDir: screen.repoDir,
               url: screen.url,
               selected: selectedIds,
-            })
-          }
+            });
+          }}
         />
       );
 
     case "naming": {
       const selectedSkills = screen.selected
-        .map((id) => skills.find((s) => s.id === id))
+        .map((id) => renamedSkills.find((s) => s.id === id) ?? skills.find((s) => s.id === id))
         .filter((s): s is Skill => Boolean(s));
       return (
         <Naming
@@ -138,12 +158,14 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
     case "agents":
       return (
         <AgentSelect
+          initialSelected={selectedAgentIds}
           onConfirm={(agentIds) => {
+            setSelectedAgentIds(agentIds);
             const tasks = buildTasks(renamedSkills, screen.selected, agentIds);
             setScreen({
               kind: "preview",
               tasks,
-              overwrite: false,
+              overwrite: flags.overwrite,
               dryRun: flags.dryRun,
             });
           }}
@@ -164,6 +186,7 @@ export function App({ initialUrl, flags }: { initialUrl?: string; flags: AppFlag
           tasks={screen.tasks}
           dryRun={screen.dryRun}
           noBackup={flags.noBackup}
+          initialOverwrite={screen.overwrite}
           onConfirm={(overwrite) =>
             setScreen({ kind: "importing", tasks: screen.tasks, overwrite })
           }

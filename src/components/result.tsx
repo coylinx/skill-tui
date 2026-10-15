@@ -196,5 +196,9 @@ function parentDir(p: string): string {
 function openPath(p: string): void {
   // best-effort cross-platform open
   const cmd = process.platform === "win32" ? "explorer" : process.platform === "darwin" ? "open" : "xdg-open";
-  import("node:child_process").then(({ spawn }) => spawn(cmd, [p], { detached: true, stdio: "ignore" }).unref());
+  void import("node:child_process").then(({ spawn }) => {
+    const child = spawn(cmd, [p], { detached: true, stdio: "ignore" });
+    child.on("error", () => {}); // e.g. xdg-open is absent on a minimal Linux install
+    child.unref();
+  });
 }

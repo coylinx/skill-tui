@@ -4,10 +4,11 @@
 // and record metadata in ~/.skill-tui/backup/index.json so the result
 // screen can offer a restore.
 
-import { existsSync, rmSync, cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { backupDir, backupIndexFile } from "./paths.js";
 import type { AgentId } from "../types.js";
+import { replaceDirectory } from "./directory.js";
 
 export interface BackupRecord {
   id: string; // <agent>/<skillName>/<timestamp>
@@ -28,7 +29,8 @@ function timestamp(): string {
 export function loadBackupIndex(): BackupRecord[] {
   try {
     if (!existsSync(backupIndexFile)) return [];
-    return JSON.parse(readFileSync(backupIndexFile, "utf8")) as BackupRecord[];
+    const records = JSON.parse(readFileSync(backupIndexFile, "utf8"));
+    return Array.isArray(records) ? records : [];
   } catch {
     return [];
   }
@@ -49,10 +51,11 @@ export function backupExisting(
   originalPath: string,
 ): string | null {
   if (!existsSync(originalPath)) return null;
-  const ts = timestamp();
-  const backupPath = path.join(backupDir, agent, skillName, ts);
-  mkdirSync(backupPath, { recursive: true });
-  cpSync(originalPath, backupPath, { recursive: true, force: true });
+  const parent = path.join(backupDir, agent, skillName);
+  mkdirSync(parent, { recursive: true });
+  const backupPath = mkdtempSync(path.join(parent, `${timestamp()}-`));
+  const ts = path.basename(backupPath);
+  cpSync(originalPath, backupPath, { recursive: true, force: true, verbatimSymlinks: true });
 
   const record: BackupRecord = {
     id: `${agent}/${skillName}/${ts}`,
@@ -75,9 +78,7 @@ export function restoreBackup(record: BackupRecord): void {
   if (!existsSync(record.backupPath)) {
     throw new Error(`备份不存在: ${record.backupPath}`);
   }
-  mkdirSync(path.dirname(record.originalPath), { recursive: true });
-  rmSync(record.originalPath, { recursive: true, force: true });
-  cpSync(record.backupPath, record.originalPath, { recursive: true, force: true });
+  replaceDirectory(record.backupPath, record.originalPath);
 }
 
 /** List recent backups, newest first. */

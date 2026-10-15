@@ -46,12 +46,14 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
     skills.map((s) => s.installName ?? s.name),
   );
   const [cursor, setCursor] = useState(0);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     setNames(skills.map((s) => s.installName ?? s.name));
   }, [skills]);
 
   function setNameAt(i: number, v: string) {
+    setNotice("");
     setNames((prev) => {
       const next = [...prev];
       next[i] = v;
@@ -67,7 +69,15 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
     } else if (key.downArrow) {
       setCursor((c) => (c + 1) % skills.length);
     } else if (key.return) {
-      const finalNames = names.map((n, i) => sanitize(n) || skills[i].name);
+      const finalNames = names.map(sanitize);
+      if (finalNames.some((name) => !name)) {
+        setNotice("安装名称不能为空，请使用英文字母或数字命名");
+        return;
+      }
+      if (new Set(finalNames).size !== finalNames.length) {
+        setNotice("安装名称重复，请为每个 Skill 使用不同名称");
+        return;
+      }
       const renamed = skills.map((s, i) => ({ ...s, installName: finalNames[i] }));
       onConfirm(renamed);
     } else if (key.escape) {
@@ -141,6 +151,7 @@ export function Naming({ skills, onConfirm, onBack }: Props) {
         </Box>
       </Box>
 
+      {notice ? <Text color={theme.danger}>{notice}</Text> : null}
       <FooterHint hints={HINTS} />
     </ScreenFrame>
   );

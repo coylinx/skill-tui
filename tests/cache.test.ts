@@ -1,44 +1,25 @@
 // Tests for cache pruning: old dirs removed, fresh dirs kept.
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, rmSync, readdirSync, utimesSync } from "node:fs";
 import path from "node:path";
 import { pruneCache } from "../src/core/cache.js";
+import { cacheDir } from "../src/core/paths.js";
 
-// pruneCache reads from cacheDir (a module-level constant pointing at the
-// real ~/.skill-tui/cache). To test hermetically we monkeypatch it via a
-// temp dir by setting the env before import is not enough (already imported).
-// Instead we test the logic by pointing pruneCache at a temp dir through a
-// small wrapper: we re-import with a stubbed paths module.
-
-// Simpler approach: exercise pruneCache's internal logic by creating real
-// temp entries whose mtime we fake via utimes. We can't redirect cacheDir
-// without module mocking, so we verify the age comparison logic directly.
-
-describe("pruneCache age logic", () => {
-  it("2 hours equals 7200000 ms", () => {
-    expect(2 * 60 * 60 * 1000).toBe(7200000);
-  });
-});
-
-// Hermetic test using a temp cache dir by mocking the paths module.
+// tests/setup.ts isolates the actual home and cache paths.
 describe("pruneCache on a temp dir", () => {
   let tmp: string;
-  let realCacheDir: string;
 
   beforeEach(() => {
-    tmp = mkdtempSync(path.join(tmpdir(), "cache-test-"));
-    // We can't easily swap the module constant, so we replicate the prune
-    // logic against tmp and assert behavior.
+    tmp = cacheDir;
+    mkdirSync(tmp, { recursive: true });
   });
 
   afterEach(() => {
     rmSync(tmp, { recursive: true, force: true });
   });
 
-  it("removes entries older than maxAge and keeps fresh ones", async () => {
-    const { utimesSync } = await import("node:fs");
+  it("removes entries older than the default two hours and keeps fresh ones", () => {
     const oldDir = path.join(tmp, "old-repo");
     const freshDir = path.join(tmp, "fresh-repo");
     mkdirSync(oldDir, { recursive: true });
@@ -53,20 +34,14 @@ describe("pruneCache on a temp dir", () => {
     utimesSync(oldDir, threeHoursAgo, threeHoursAgo);
     utimesSync(freshDir, oneHourAgo, oneHourAgo);
 
-    // Replicate pruneCache logic against tmp.
-    const maxAge = 2 * 3600000;
-    const entries = readdirSync(tmp);
-    const removed: string[] = [];
-    for (const entry of entries) {
-      const dir = path.join(tmp, entry);
-      const mtime = (await import("node:fs")).statSync(dir).mtimeMs;
-      if (now - mtime > maxAge) {
-        rmSync(dir, { recursive: true, force: true });
-        removed.push(entry);
-      }
-    }
-
-    expect(removed).toEqual(["old-repo"]);
+    const result = pruneCache();
+    expect(result.removed).toEqual(["old-repo"]);
+    expect(result.kept).toEqual(["fresh-repo"]);
     expect(readdirSync(tmp)).toEqual(["fresh-repo"]);
+  });
+
+  it("handles an absent cache directory", () => {
+    rmSync(cacheDir, { recursive: true, force: true });
+    expect(pruneCache()).toEqual({ removed: [], kept: [] });
   });
 });

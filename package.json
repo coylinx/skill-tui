@@ -12,10 +12,11 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:terminal": "npm run build && python3 scripts/terminal-smoke.py",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "chalk": "^5.4.1",

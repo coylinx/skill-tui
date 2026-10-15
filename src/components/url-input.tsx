@@ -1,10 +1,10 @@
 // Screen ①: Git URL input with history recall (↑/↓) and a bordered field.
 // Enter → onSubmit(url); Esc → onExit. Supports a pre-filled initial value
-// (e.g. when launched as `skilltui <url>`).
+// for callers that want to pre-fill the field. App handles CLI auto-advance.
 
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { theme } from "../theme.js";
 import { FooterHint, type Hint } from "./footer-hint.js";
 import { ScreenFrame } from "./screen-frame.js";
@@ -26,35 +26,21 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
   const { exit } = useApp();
   const [value, setValue] = useState(initialValue ?? "");
   const [histIndex, setHistIndex] = useState<number>(-1); // -1 = editing live
-
-  // If launched with a URL arg, auto-advance once the history has loaded.
-  useEffect(() => {
-    if (initialValue && initialValue.trim()) {
-      onSubmit(initialValue.trim());
-    }
-    // run once on mount only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function recall(dir: -1 | 1) {
-    if (history.length === 0) return;
-    setHistIndex((prev) => {
-      let next = prev === -1 ? (dir === 1 ? 0 : history.length - 1) : prev + dir;
-      next = Math.max(0, Math.min(history.length - 1, next));
-      setValue(history[next]);
-      return next;
-    });
-  }
+  const draft = useRef(initialValue ?? "");
 
   useInput((_input, key) => {
     if (key.upArrow) {
-      recall(-1);
+      if (history.length === 0) return;
+      if (histIndex === -1) draft.current = value;
+      const next = Math.min(histIndex + 1, history.length - 1);
+      setHistIndex(next);
+      setValue(history[next]);
     } else if (key.downArrow) {
       if (histIndex === -1) return;
-      const next = histIndex + 1;
-      if (next >= history.length) {
+      const next = histIndex - 1;
+      if (next < 0) {
         setHistIndex(-1);
-        setValue("");
+        setValue(draft.current);
       } else {
         setHistIndex(next);
         setValue(history[next]);
@@ -89,7 +75,10 @@ export function UrlInput({ initialValue, history, onSubmit }: Props) {
         >
           <TextInput
             value={value}
-            onChange={setValue}
+            onChange={(next) => {
+              setValue(next);
+              setHistIndex(-1);
+            }}
             onSubmit={submit}
             placeholder="https://github.com/user/skills.git"
             showCursor
