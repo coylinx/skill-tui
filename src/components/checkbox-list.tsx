@@ -61,16 +61,16 @@ export function CheckboxList({
   });
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2}>
+    <Box flexDirection="column" alignItems="center" justifyContent="center" paddingX={2} width="100%">
       <Box
         flexDirection="column"
         borderStyle="round"
         borderColor={theme.border}
         paddingX={2}
         paddingY={1}
-        minWidth={60}
+        width="100%"
       >
-        <Box marginBottom={1} justifyContent="space-between">
+        <Box marginBottom={1} justifyContent="space-between" flexWrap="wrap">
           <Text color={theme.accent} bold>{title}</Text>
           {items.length > 0 ? (
             <Text color={theme.textMuted}>已选 {selected.size}/{items.length}</Text>
@@ -84,7 +84,7 @@ export function CheckboxList({
             const checked = selected.has(item.id);
             const isCursor = i === cursor;
             return (
-              <Box key={item.id} flexDirection="row" backgroundColor={isCursor ? theme.panelRaised : undefined}>
+              <Box key={item.id} flexDirection="row" flexWrap="wrap" backgroundColor={isCursor ? theme.panelRaised : undefined}>
                 <Text color={isCursor ? theme.accent : theme.textMuted}>{isCursor ? "▸" : " "}</Text>
                 <Text color={checked ? theme.success : theme.textMuted}>{checked ? " ◉" : " ◯"}</Text>
                 <Text color={isCursor ? theme.text : theme.textMuted} bold={isCursor}>

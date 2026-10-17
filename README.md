@@ -206,7 +206,7 @@ Tests cover: source resolution (including Windows paths), skill discovery (3 rep
 - Add transactional update, removal, backup, and restore workflows with an interactive management dashboard.
 - Support local directories, GitHub shorthand, and an explicit shared target at `~/.agents/skills/`.
 - Record source provenance and retain local changes unless explicitly overridden.
-- Keep long target paths and confirmation text readable in the import preview.
+- Keep long source and target paths readable in selection lists and the import preview.
 - Require Node.js 22 or newer, matching Ink 7; test Node.js 22 and 24 on Linux, macOS, and Windows.
 - Update package links to the repository's new location, `coylinx/skill-tui`.
 

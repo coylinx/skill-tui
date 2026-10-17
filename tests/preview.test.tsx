@@ -7,6 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Preview, formatDryRunPlan } from "../src/components/preview.js";
+import { CheckboxList } from "../src/components/checkbox-list.js";
 import { agentSkillsDirs, skillTargetPath } from "../src/core/paths.js";
 import type { ImportTask, Skill } from "../src/types.js";
 
@@ -28,6 +29,24 @@ function makeSkill(name: string): Skill {
 }
 
 describe("Preview screen", () => {
+  it("keeps list headings and labels visible for long source paths", () => {
+    const { lastFrame, unmount } = render(
+      <CheckboxList
+        title={`发现 1 个 Skill — 来自 /tmp/${"long-source-directory/".repeat(10)}`}
+        items={[{ id: "one", label: "release-skill", hint: `/tmp/${"long-target-directory/".repeat(10)}` }]}
+        selected={new Set()}
+        onToggle={() => {}}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    try {
+      expect(lastFrame()).toContain("发现 1 个 Skill");
+      expect(lastFrame()).toContain("release-skill");
+      expect(lastFrame()).toContain("已选 0/1");
+    } finally { unmount(); }
+  });
+
   it("keeps confirmation text visible when a target path is wider than the terminal", () => {
     const previousRoot = agentSkillsDirs.codex;
     agentSkillsDirs.codex = path.join(tmp, "long-agent-directory-".repeat(8), "skills");

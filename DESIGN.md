@@ -52,7 +52,7 @@ Use the terminal's monospace font and CJK fallback. Bold identifies headings and
 
 `ScreenFrame` owns the common frame and alignment. `Title` owns the logo and stage marker. `CheckboxList` owns focused/selected rows; `FooterHint` owns key instructions. New source kinds reuse these screens. Put long compatibility explanations below a selection list to limit row width.
 
-The frame uses the terminal height as a minimum and grows with longer content. Preview panels fit the available width; each target path wraps below its Skill name so long Windows and macOS paths cannot push confirmation text off the left edge.
+The frame uses the terminal height as a minimum and grows with longer content. Preview panels and shared lists fit the available width; list headings and rows wrap instead of widening the frame. Each preview target path wraps below its Skill name so long Windows and macOS paths cannot push confirmation text off the left edge.
 
 ## Elevation & Depth
 
