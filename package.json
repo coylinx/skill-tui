@@ -1,18 +1,18 @@
 {
   "name": "skill-tui",
-  "version": "0.3.2",
-  "description": "Terminal UI for importing Skills (SKILL.md) into AI coding agents: Claude Code, Codex, Cursor, ZCode, OpenClaw, Hermes, OpenCode.",
+  "version": "0.4.0",
+  "description": "Terminal UI for installing and managing Skills (SKILL.md) across AI coding agents from Git repositories and local folders.",
   "type": "module",
   "license": "MIT",
   "author": "Zhongyuan Lin",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/coylin-zy/skill-tui.git"
+    "url": "git+https://github.com/coylinx/skill-tui.git"
   },
   "bugs": {
-    "url": "https://github.com/coylin-zy/skill-tui/issues"
+    "url": "https://github.com/coylinx/skill-tui/issues"
   },
-  "homepage": "https://github.com/coylin-zy/skill-tui#readme",
+  "homepage": "https://github.com/coylinx/skill-tui#readme",
   "keywords": [
     "skill",
     "skills",
@@ -38,7 +38,7 @@
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "chalk": "^5.4.1",

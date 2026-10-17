@@ -1,7 +1,7 @@
 // Full-screen vertical+horizontal centering wrapper.
 // Ink's justifyContent="center" only centers within the box's own height;
-// to truly center on the terminal we must set the box height to the terminal
-// row count (via useWindowSize) and let the inner content sit in the middle.
+// Use a minimum height so a long preview can grow beyond the terminal instead
+// of being vertically centered outside the visible drawing region.
 
 import { Box, useStdout } from "ink";
 import type { ReactNode } from "react";
@@ -18,7 +18,7 @@ export function ScreenFrame({ children }: Props) {
       flexDirection="column"
       alignItems="center"
       justifyContent="center"
-      height={rows}
+      minHeight={rows}
       paddingX={2}
     >
       {children}

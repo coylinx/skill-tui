@@ -127,7 +127,7 @@ opencode 的 logo（`packages/tui/src/logo.ts` + `component/logo.tsx`）：
 | 测试 | `ink-testing-library` + `vitest` |
 | CLI 解析 | 轻量自写（或 `meow`），支持 `skill-tui [git-url]` 直进、`--dry-run` 预览不写入、`--overwrite` 覆盖已有、`--no-backup` 跳过备份 |
 
-Node 版本：`>= 20`。
+Node 版本：v0.4.0 起 `>= 22`（与 Ink 7 一致；初期为 `>= 20`）。
 
 **npm 包名与命令名**：已核实 `skill-tui` 在 npm registry 未被占用，作为发布包名。终端命令名用 `skill`（已核实 PATH 上未占用）——npm 支持包名与 bin 命令名不同。用户安装：`npm i -g skill-tui`，启动：终端输入 `skill`。（备选包名 `skilltui` / `@skill/cli` 同样可用。）
 
@@ -851,3 +851,11 @@ src/
 - 新增来源解析、Windows/UNC/空格路径、本地完整交互流程、共享目录事务生命周期与选择提示测试。
 - 本机验证：19 个测试文件、107 项测试通过；typecheck/build 通过；真实终端本地来源 → shared 目标 dry-run 不写入目标、manifest 或 cache，退出后恢复 alternate screen；`list/update/remove --agent shared --json` 均保持 schemaVersion=1 并通过预览无写入检查。
 - 下一步 `0.4-f`：迁移/发布说明、跨平台 CI 结果、版本与 npm 打包检查；不在本轮自动发布。
+
+### 13.10 0.4.0 发布准备（2026-10-17）
+
+- 用户已要求发布 npm；版本定为 `0.4.0`，仓库链接更新至 `coylinx/skill-tui`。
+- Node.js 最低版本修正为 22，与 Ink 7 的依赖要求一致；CI 覆盖 Node.js 22/24 与三个操作系统。
+- 修复 macOS/Windows 长临时目录路径导致导入预览向左溢出的问题：预览限定可用宽度，路径独立换行，页面允许随内容增高。
+- README 增加 0.3.x 迁移说明和 0.4.0 changelog；现有未管理目录不自动移动或认领。
+- 发布前执行类型检查、完整测试、构建、跨平台 CI、包内容检查及安装后 CLI smoke test；发布结果在完成后补记。

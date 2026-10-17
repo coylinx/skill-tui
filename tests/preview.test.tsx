@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Preview, formatDryRunPlan } from "../src/components/preview.js";
-import { skillTargetPath } from "../src/core/paths.js";
+import { agentSkillsDirs, skillTargetPath } from "../src/core/paths.js";
 import type { ImportTask, Skill } from "../src/types.js";
 
 let tmp: string;
@@ -28,6 +28,27 @@ function makeSkill(name: string): Skill {
 }
 
 describe("Preview screen", () => {
+  it("keeps confirmation text visible when a target path is wider than the terminal", () => {
+    const previousRoot = agentSkillsDirs.codex;
+    agentSkillsDirs.codex = path.join(tmp, "long-agent-directory-".repeat(8), "skills");
+    let unmount: (() => void) | undefined;
+    try {
+      const skill = makeSkill("preview-long-path-xyz");
+      const view = render(
+        <Preview tasks={[{ skill, agent: "codex" }]} dryRun={false} noBackup={false} onConfirm={() => {}} onBack={() => {}} />,
+      );
+      unmount = view.unmount;
+      const frame = view.lastFrame() ?? "";
+      expect(frame).toContain("导入预览");
+      expect(frame).toContain("将安装 1 项");
+      expect(frame).toContain("preview-long-path-xyz");
+      expect(frame).toContain("已存在处理：跳过（默认）");
+    } finally {
+      unmount?.();
+      agentSkillsDirs.codex = previousRoot;
+    }
+  });
+
   it("renders install items with + glyph for fresh targets", () => {
     const skill = makeSkill("preview-fresh-xyz");
     const tasks: ImportTask[] = [{ skill, agent: "codex" }];

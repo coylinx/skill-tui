@@ -81,7 +81,7 @@ export function Preview({
         borderColor={theme.border}
         paddingX={2}
         paddingY={1}
-        minWidth={64}
+        width="100%"
       >
         <Box marginBottom={1}>
           <Text color={theme.accent} bold>
@@ -114,23 +114,20 @@ export function Preview({
               {agent === "shared" ? "shared · 共享目录（Codex / OpenCode / OpenClaw 默认配置）" : agent}
             </Text>
             {list.map((item) => (
-              <Box key={`${item.agent}-${item.skill.id}`} flexDirection="row">
-                <Text color={item.exists ? theme.warning : theme.success}>
-                  {item.exists ? (item.action === "overwrite" ? "↻" : "◷") : "+"}
-                </Text>
+              <Box key={`${item.agent}-${item.skill.id}`} flexDirection="column">
                 <Text color={theme.text}>
-                  {" "}
-                  {(item.skill.installName ?? item.skill.name).padEnd(20)}
+                  <Text color={item.exists ? theme.warning : theme.success}>
+                    {item.exists ? (item.action === "overwrite" ? "↻" : "◷") : "+"}
+                  </Text>
+                  {" "}{item.skill.installName ?? item.skill.name}
+                  {item.exists && item.action === "overwrite" ? (
+                    <Text color={theme.warning}> [覆盖{noBackup ? "" : "+备份"}]</Text>
+                  ) : null}
+                  {item.exists && item.action === "skip" ? <Text dimColor> [跳过]</Text> : null}
                 </Text>
                 <Text dimColor color={theme.textMuted}>
-                  → {displayPath(item.targetPath)}
+                  {"  "}→ {displayPath(item.targetPath)}
                 </Text>
-                {item.exists && item.action === "overwrite" ? (
-                  <Text color={theme.warning}> [覆盖{noBackup ? "" : "+备份"}]</Text>
-                ) : null}
-                {item.exists && item.action === "skip" ? (
-                  <Text dimColor> [跳过]</Text>
-                ) : null}
               </Box>
             ))}
           </Box>

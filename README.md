@@ -1,6 +1,6 @@
-# skilltui — Skill Installer TUI
+# skilltui — Skill Manager TUI
 
-[![CI](https://github.com/coylin-zy/skill-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/coylin-zy/skill-tui/actions/workflows/ci.yml)
+[![CI](https://github.com/coylinx/skill-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/coylinx/skill-tui/actions/workflows/ci.yml)
 
 A terminal UI for importing [Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) (`SKILL.md`) into AI coding agents from Git repositories or local folders.
 
@@ -25,6 +25,8 @@ All agents share the same Skill format: a directory containing a `SKILL.md` with
 
 ## Install
 
+Requires **Node.js 22 or newer**.
+
 ```sh
 npm install -g skill-tui
 ```
@@ -36,6 +38,16 @@ skilltui
 ```
 
 The TUI launches on a clean screen (alternate buffer, like vim/htop) and restores your previous terminal content on exit.
+
+### Upgrade from 0.3.x
+
+```sh
+npm install -g skill-tui@0.4.0
+```
+
+Existing Skill directories and backups stay in place. Skills installed before installation tracking was introduced appear as `unmanaged`; they can be inspected but have no recorded source for automatic updates. To manage one, re-import it from its original source and enable overwrite in the preview; the existing directory is backed up by default. New imports record their source and content in `~/.skill-tui/manifest.json`.
+
+The `shared` target is optional and installs into `~/.agents/skills/`. Upgrading does not move existing Skills into that directory.
 
 ## Usage
 
@@ -105,7 +117,7 @@ A cool graphite console palette with mint primary actions and amber status cues,
 ### Build from source
 
 ```sh
-git clone https://github.com/coylin-zy/skill-tui.git
+git clone https://github.com/coylinx/skill-tui.git
 cd skill-tui
 npm install        # install deps
 npm run dev        # run via tsx (src/index.tsx)
@@ -188,6 +200,15 @@ npm test           # unit, integration, and Ink interaction tests via vitest
 Tests cover: source resolution (including Windows paths), skill discovery (3 repo layouts), frontmatter parsing, agent detection, transactional import/update/remove/restore, shared-target provenance, preview and naming interactions, and deterministic full flows for Git and local sources.
 
 ## Changelog
+
+### 0.4.0
+- Add installation records, inventory, health checks, and JSON management commands.
+- Add transactional update, removal, backup, and restore workflows with an interactive management dashboard.
+- Support local directories, GitHub shorthand, and an explicit shared target at `~/.agents/skills/`.
+- Record source provenance and retain local changes unless explicitly overridden.
+- Keep long target paths and confirmation text readable in the import preview.
+- Require Node.js 22 or newer, matching Ink 7; test Node.js 22 and 24 on Linux, macOS, and Windows.
+- Update package links to the repository's new location, `coylinx/skill-tui`.
 
 ### 0.3.2
 - Fix: `--overwrite` flag now actually pre-enables overwrite mode on the preview screen (was parsed but ignored)
