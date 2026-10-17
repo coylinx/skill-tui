@@ -170,7 +170,8 @@ export function createInstallation(
 ): InstallationRecord {
   const now = new Date().toISOString();
   const source: SkillSource = task.skill.source
-    ? { ...task.skill.source, location: sourceLocation(task.skill.source.location) }
+    ? { ...task.skill.source, location: task.skill.source.kind === "git"
+      ? sourceLocation(task.skill.source.location) : path.resolve(task.skill.source.location) }
     : { kind: "local", location: path.resolve(task.skill.dir), relativePath: ".", commit: null };
   const files = snapshotFiles(stagedPath);
   const record: InstallationRecord = {

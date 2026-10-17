@@ -94,7 +94,8 @@ export type AgentId =
   | "zcode"
   | "openclaw"
   | "hermes"
-  | "opencode";
+  | "opencode"
+  | "shared";
 
 export type AgentStatus = "installed" | "configured" | "missing";
 

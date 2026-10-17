@@ -10,7 +10,8 @@ describe("UrlInput", () => {
   it("renders the prompt and placeholder", () => {
     const { lastFrame } = render(<UrlInput history={[]} onSubmit={() => {}} />);
     const frame = lastFrame() ?? "";
-    expect(frame).toMatch(/输入 Skill 仓库的 Git 地址/);
+    expect(frame).toMatch(/输入 Skill 来源/);
+    expect(frame).toContain("github:owner/repo");
     expect(frame).toMatch(/Enter/);
   });
 

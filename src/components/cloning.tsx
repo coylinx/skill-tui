@@ -11,10 +11,11 @@ import { Title } from "./title.js";
 interface Props {
   url: string;
   cachePath: string;
+  local?: boolean;
   error?: string;
 }
 
-export function Cloning({ url, cachePath, error }: Props) {
+export function Cloning({ url, cachePath, local = false, error }: Props) {
   return (
     <ScreenFrame>
       <Title stage={2} />
@@ -23,7 +24,7 @@ export function Cloning({ url, cachePath, error }: Props) {
         {error ? (
           <>
             <Text color={theme.danger} bold>
-              ✗ 克隆失败
+              ✗ 来源读取失败
             </Text>
             <Text color={theme.danger}>{error}</Text>
             <Box marginTop={1}>
@@ -34,10 +35,10 @@ export function Cloning({ url, cachePath, error }: Props) {
           </>
         ) : (
           <>
-            <Loading label={`正在克隆 ${url} …`} />
+            <Loading label={`${local ? "正在读取本地目录" : "正在克隆"} ${url} …`} />
             <Box marginTop={1}>
               <Text dimColor color={theme.textMuted}>
-                目标缓存: {cachePath}
+                {local ? "本地目录" : "目标缓存"}: {cachePath}
               </Text>
             </Box>
           </>

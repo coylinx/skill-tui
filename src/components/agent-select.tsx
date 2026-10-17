@@ -66,8 +66,8 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
     const path = displayPath(a.skillsDir);
     return {
       id: a.id,
-      label: `${a.label}  ${st.ch} ${st.text}`,
-      hint: `→ ${path}${a.note ?? ""}`,
+      label: a.id === "shared" ? `${a.label} · 跨 Agent` : `${a.label}  ${st.ch} ${st.text}`,
+      hint: `→ ${path}${a.id === "shared" ? "" : a.note ?? ""}`,
     };
   });
 
@@ -83,7 +83,7 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
 
   function confirm() {
     if (selected.size === 0) {
-      setNotice("请至少用 Space 勾选一个目标 Agent");
+      setNotice("请至少用 Space 勾选一个安装目标");
       return;
     }
     onConfirm([...selected] as AgentId[]);
@@ -93,13 +93,21 @@ export function AgentSelect({ onConfirm, onBack }: Props) {
     <ScreenFrame>
       <Title stage={5} />
       <CheckboxList
-        title="选择目标 Agent"
+        title="选择目标 Agent / 共享目录"
         items={items}
         selected={selected}
         onToggle={toggle}
         onConfirm={confirm}
         onBack={onBack}
       />
+      <Box marginTop={1}>
+        <Text color={theme.textMuted}>共享目录可由 Codex、OpenCode 及默认配置的 OpenClaw 读取。</Text>
+      </Box>
+      {selected.has("shared") && ["codex", "opencode", "openclaw"].some((id) => selected.has(id)) ? (
+        <Box marginTop={1}>
+          <Text color={theme.warning}>共享目录和单独 Agent 目录可能被同时读取，通常选择一种安装目标即可。</Text>
+        </Box>
+      ) : null}
       {notice ? (
         <Box marginTop={1}>
           <Text color={theme.danger}>{notice}</Text>

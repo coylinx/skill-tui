@@ -46,7 +46,7 @@ describe("agent detection", () => {
     expect(deriveStatus(false, false, false)).toBe("missing");
   });
 
-  it("allAgentIds lists the seven supported agents", () => {
+  it("allAgentIds lists the seven agents and explicit shared target", () => {
     expect(allAgentIds().sort()).toEqual([
       "claude",
       "codex",
@@ -54,6 +54,7 @@ describe("agent detection", () => {
       "hermes",
       "openclaw",
       "opencode",
+      "shared",
       "zcode",
     ]);
   });

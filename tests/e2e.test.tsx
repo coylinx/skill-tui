@@ -101,7 +101,7 @@ describe("App full flow", () => {
     await waitForFrame(lastFrame, /正在克隆/);
     await settleInputHandlers();
     stdin.write("\u001b");
-    await waitForFrame(lastFrame, /输入 Skill 仓库的 Git 地址/);
+    await waitForFrame(lastFrame, /输入 Skill 来源/);
     expect(mockState.cloneAborted).toBe(true);
     expect(cloneRepo).toHaveBeenCalledTimes(1);
     unmount();
@@ -144,12 +144,57 @@ describe("App full flow", () => {
     await waitForFrame(lastFrame, /发现 1 个 Skill/);
     await settleInputHandlers();
     stdin.write("\u001b");
-    await waitForFrame(lastFrame, /输入 Skill 仓库的 Git 地址/);
+    await waitForFrame(lastFrame, /输入 Skill 来源/);
 
     // Returning home must not auto-submit initialUrl again.
     await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(lastFrame() ?? "").toMatch(/输入 Skill 仓库的 Git 地址/);
+    expect(lastFrame() ?? "").toMatch(/输入 Skill 来源/);
     expect(cloneRepo).toHaveBeenCalledTimes(1);
     unmount();
+  });
+
+  it("discovers a local directory and reaches preview without invoking Git", async () => {
+    const { stdin, lastFrame, unmount } = render(
+      <App flags={flags} initialUrl={fixtureRoot} />,
+    );
+    try {
+      await waitForFrame(lastFrame, /发现 1 个 Skill/);
+      expect(cloneRepo).not.toHaveBeenCalled();
+      await settleInputHandlers();
+      stdin.write(" ");
+      await settleInputHandlers();
+      stdin.write("\r");
+      await waitForFrame(lastFrame, /命名安装文件夹/);
+      await settleInputHandlers();
+      stdin.write("\r");
+      await waitForFrame(lastFrame, /选择目标 Agent/);
+      await settleInputHandlers();
+      stdin.write(" ");
+      await settleInputHandlers();
+      stdin.write("\r");
+      await waitForFrame(lastFrame, /导入预览/);
+      expect(lastFrame()).toContain("sample-skill");
+    } finally { unmount(); }
+  });
+
+  it("expands GitHub shorthand before cloning", async () => {
+    const { lastFrame, unmount } = render(<App flags={flags} initialUrl="github:owner/skills" />);
+    try {
+      await waitForFrame(lastFrame, /发现 1 个 Skill/);
+      expect(cloneRepo).toHaveBeenCalledWith("https://github.com/owner/skills.git", expect.any(AbortSignal));
+    } finally { unmount(); }
+  });
+
+  it("shows a recoverable error for a missing local directory", async () => {
+    const missing = path.join(fixtureRoot, "missing");
+    const { stdin, lastFrame, unmount } = render(<App flags={flags} initialUrl={missing} />);
+    try {
+      await waitForFrame(lastFrame, /无法读取本地目录/);
+      expect(cloneRepo).not.toHaveBeenCalled();
+      await settleInputHandlers();
+      stdin.write("\u001b");
+      await waitForFrame(lastFrame, /输入 Skill 来源/);
+      expect(lastFrame()).toContain(missing);
+    } finally { unmount(); }
   });
 });

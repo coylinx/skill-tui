@@ -74,6 +74,7 @@ export const agentSkillsDirs: Record<string, string> = {
   openclaw: path.join(home, ".openclaw", "skills"),
   hermes: path.join(hermesRoot(), "skills"),
   opencode: opencodeSkillsDir(),
+  shared: path.join(home, ".agents", "skills"),
 };
 
 /** Resolve a skill's target directory for a given agent. */

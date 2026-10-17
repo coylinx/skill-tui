@@ -813,7 +813,7 @@ src/
 | **0.4-b** | inventory/list/doctor 核心逻辑 | 可发现 managed、unmanaged、missing 三类状态 |
 | **0.4-c** | update/remove plan 与 diff 摘要 | 所有写入都经过现有 preview/importer |
 | **0.4-d** | TUI 管理页和非交互命令 | `m` 进入管理台并可确认执行更新；`list --json`、`doctor --json`、`update --json` 可被脚本稳定消费 |
-| **0.4-e** | 本地目录、Git shorthand、共享路径 | Windows/macOS/Linux 路径测试通过 |
+| **0.4-e** | 本地目录、Git shorthand、共享路径（代码与回归测试已完成） | Linux 本机验证；Windows 路径用例已覆盖，跨平台运行由 CI 确认 |
 | **0.4-f** | 文档、迁移说明、发布验证 | README 有完整示例；`npm run typecheck && npm test && npm run build` 通过 |
 
 预估总工期约 4–6 天。先完成 `0.4-a` 到 `0.4-c`，再决定是否把 catalog 放进同一版本。
@@ -841,3 +841,13 @@ src/
 2. `0.4.0-alpha.1`：manifest + list + doctor，只读能力先行。
 3. `0.4.0-beta.1`：update/remove plan、diff、恢复路径（当前核心已完成）。
 4. `0.4.0`：跨平台和 JSON CLI 稳定后发布。
+
+### 13.9 0.4-e 实施记录（2026-10-17）
+
+- 来源入口统一解析 Git URL、`owner/repo`、`github:owner/repo`、本地相对/绝对目录、`~` 与 `file:` URL；同名本地目录优先，`github:` 可强制选择远端。
+- 本地目录原地发现 Skill，不克隆；来源 root 与相对路径登记到 manifest，commit 保持 `null`，后续更新复用现有来源比较流程。
+- 增加 `shared` 显式目标 `~/.agents/skills/`，贯通预览、manifest、inventory、update、remove 与备份恢复；保持默认不勾选。
+- 共享目录与单独 Agent 目录同时选择时提示可能重复发现；标注 Codex、OpenCode 及默认状态目录的 OpenClaw 支持范围。
+- 新增来源解析、Windows/UNC/空格路径、本地完整交互流程、共享目录事务生命周期与选择提示测试。
+- 本机验证：19 个测试文件、107 项测试通过；typecheck/build 通过；真实终端本地来源 → shared 目标 dry-run 不写入目标、manifest 或 cache，退出后恢复 alternate screen；`list/update/remove --agent shared --json` 均保持 schemaVersion=1 并通过预览无写入检查。
+- 下一步 `0.4-f`：迁移/发布说明、跨平台 CI 结果、版本与 npm 打包检查；不在本轮自动发布。

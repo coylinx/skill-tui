@@ -115,10 +115,15 @@ describe("env-aware paths (imported from paths.ts)", () => {
   });
 
   describe("agentSkillsDirs (module-level constant)", () => {
-    it("contains all 7 agents", () => {
+    it("contains all 7 agents and the shared target", () => {
       expect(Object.keys(agentSkillsDirs).sort()).toEqual([
-        "claude", "codex", "cursor", "hermes", "openclaw", "opencode", "zcode",
+        "claude", "codex", "cursor", "hermes", "openclaw", "opencode", "shared", "zcode",
       ]);
+    });
+
+    it("keeps the shared target in ~/.agents/skills independently of CODEX_HOME", () => {
+      expect(agentSkillsDirs.shared).toBe(path.join(home, ".agents", "skills"));
+      expect(agentSkillsDirs.shared).not.toBe(agentSkillsDirs.codex);
     });
 
     it("all skill dirs end with /skills", () => {

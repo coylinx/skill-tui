@@ -1,7 +1,7 @@
 // CLI entry point. Published as the `skilltui` command (npm package `skill-tui`).
 // Usage:
 //   skilltui                    → interactive flow
-//   skilltui <git-url>          → skip URL input, go straight to clone
+//   skilltui <source>           → Git URL, GitHub shorthand, or local folder
 //   skilltui --dry-run [url]    → stop at the preview screen, no writes
 //   skilltui --overwrite [url]  → overwrite existing skills (with backup)
 //   skilltui --no-backup [url]  → skip backup on overwrite (needs confirm)
@@ -65,11 +65,12 @@ function parseArgs(argv: string[]): ParsedArgs {
 function printHelp(): void {
   console.log(`skilltui — Skill installer TUI
 
-Install Skills (SKILL.md) into AI coding agents from any git repo.
+Install Skills (SKILL.md) into AI coding agents from Git or a local folder.
 Supports: Claude Code, Codex, Cursor, ZCode, OpenClaw, Hermes, OpenCode.
 
 Usage:
-  skilltui [git-url] [options]
+  skilltui [source] [options]
+  source: Git URL, owner/repo, github:owner/repo, or local folder
 
 Options:
   --dry-run      Preview what would be written, then exit (no changes)
@@ -79,14 +80,18 @@ Options:
   doctor         Check manifest and installed Skill health (use --json)
   remove <name>  Preview removal of a managed Skill; use --yes to execute
   update [name]   Preview source changes; use --yes to apply, --force for local edits
-  --agent <id>   Limit list to one Agent
-  --json         Emit machine-readable output for list/doctor
+  --agent <id>   Filter list/update/remove by Agent (shared = ~/.agents/skills)
+  --json         Emit machine-readable output for management commands
   -h, --help     Show this help
   -v, --version  Show version
 
 Examples:
   skilltui
   skilltui https://github.com/obra/superpowers.git
+  skilltui obra/superpowers
+  skilltui github:obra/superpowers
+  skilltui ./my-skills
+  skilltui list --agent shared --json
   skilltui --dry-run https://github.com/obra/superpowers.git
 `);
 }

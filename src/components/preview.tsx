@@ -104,14 +104,14 @@ export function Preview({
 
         <Box marginBottom={1}>
           <Text color={theme.textMuted}>
-            {Object.keys(byAgent).length} 个 Agent · {items.length} 个目标路径 · 写入前可回退
+            {Object.keys(byAgent).length} 个安装目标 · {items.length} 个目标路径 · 写入前可回退
           </Text>
         </Box>
 
         {Object.entries(byAgent).map(([agent, list]) => (
           <Box key={agent} flexDirection="column" marginBottom={1}>
             <Text color={theme.accentDim} bold>
-              {agent}
+              {agent === "shared" ? "shared · 共享目录（Codex / OpenCode / OpenClaw 默认配置）" : agent}
             </Text>
             {list.map((item) => (
               <Box key={`${item.agent}-${item.skill.id}`} flexDirection="row">

@@ -72,10 +72,10 @@ export function UrlInput({ initialValue, history, onSubmit, onManage }: Props) {
       <Box flexDirection="column" alignItems="center" marginTop={1}>
         <Box flexDirection="row" alignItems="center">
           <Text color={theme.accentWarm} bold>● </Text>
-          <Text color={theme.text} bold>输入 Skill 仓库的 Git 地址</Text>
+          <Text color={theme.text} bold>输入 Skill 来源</Text>
         </Box>
         <Text color={theme.textMuted} dimColor>
-          粘贴 GitHub、GitLab 或任意可访问的 Git 仓库
+          Git 地址、owner/repo、github:owner/repo 或本地目录
         </Text>
 
         <Box
@@ -90,7 +90,7 @@ export function UrlInput({ initialValue, history, onSubmit, onManage }: Props) {
             value={value}
             onChange={setValue}
             onSubmit={submit}
-            placeholder="https://github.com/user/skills.git"
+            placeholder="owner/repo 或 ./my-skills"
             showCursor
           />
         </Box>
@@ -98,7 +98,7 @@ export function UrlInput({ initialValue, history, onSubmit, onManage }: Props) {
         {history.length > 0 ? (
           <Box marginTop={1}>
             <Text color={theme.textSubtle} dimColor>
-              ↑↓ 浏览最近 {history.length} 个仓库
+              ↑↓ 浏览最近 {history.length} 个来源
             </Text>
           </Box>
         ) : null}

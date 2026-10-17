@@ -1,6 +1,5 @@
 // Top-level app state machine. Wires screens together.
-// Phase 1 implements: url → cloning (stub) → (skills placeholder).
-// Later phases extend the switch with skills/agents/preview/importing/result.
+// Local folders and Git sources share the same selection/preview/write flow.
 
 import { useApp, useInput } from "ink";
 import { useEffect, useRef, useState } from "react";
@@ -13,10 +12,11 @@ import { Preview } from "./components/preview.js";
 import { Result } from "./components/result.js";
 import { SkillList } from "./components/skill-list.js";
 import { UrlInput } from "./components/url-input.js";
-import { discoverSkills } from "./core/discover.js";
-import { cloneRepo } from "./core/repo.js";
+import { loadImportSource, resolveSourceInput } from "./core/import-source.js";
+import { sourceLocation } from "./core/manifest.js";
 import { loadHistory, saveHistory } from "./core/history.js";
 import { cacheDir, urlHash } from "./core/paths.js";
+import path from "node:path";
 import type { AgentId, ImportTask, Screen, Skill } from "./types.js";
 
 export interface AppFlags {
@@ -54,8 +54,10 @@ export function App({
     return url ? { kind: "cloning", url } : { kind: "url" };
   });
   const [history, setHistory] = useState<string[]>([]);
+  const [sourceInput, setSourceInput] = useState(initialUrl ?? "");
   const [cloneError, setCloneError] = useState<string | undefined>();
   const [cloneCachePath, setCloneCachePath] = useState<string>("");
+  const [localSource, setLocalSource] = useState(false);
   const [skills, setSkills] = useState<Skill[]>([]);
   // Skills after optional renaming (installName set). Used when building
   // import tasks so the target folder reflects the user's chosen name.
@@ -74,27 +76,26 @@ export function App({
     if (screen.kind !== "cloning") return;
     const controller = new AbortController();
     setCloneError(undefined);
-    // Pre-compute the cache path for display.
-    urlHash(screen.url).then((h) => {
-      if (!controller.signal.aborted) setCloneCachePath(`${cacheDir}/${h}`);
-    });
-    cloneRepo(screen.url, controller.signal)
+    setCloneCachePath("");
+    Promise.resolve().then(async () => {
+      controller.signal.throwIfAborted();
+      const source = resolveSourceInput(screen.url);
+      setLocalSource(source.kind === "local");
+      const location = source.kind === "git" ? sourceLocation(source.location) : source.location;
+      const displayDir = source.kind === "local" ? source.location
+        : path.join(cacheDir, await urlHash(source.location));
+      if (controller.signal.aborted) return;
+      setCloneCachePath(displayDir);
+      const res = await loadImportSource(source, controller.signal);
+      return { ...res, location };
+    })
       .then(async (res) => {
+        if (!res || controller.signal.aborted) return;
+        await saveHistory(res.location);
         if (controller.signal.aborted) return;
-        await saveHistory(screen.url);
-        if (controller.signal.aborted) return;
-        const found = discoverSkills(res.dir).map((skill) => ({
-          ...skill,
-          source: {
-            kind: "git" as const,
-            location: screen.url,
-            relativePath: skill.relativePath,
-            commit: res.commit ?? null,
-          },
-        }));
-        setSkills(found);
-        skillsCtx.current = { repoDir: res.dir, url: screen.url };
-        setScreen({ kind: "skills", repoDir: res.dir, url: screen.url });
+        setSkills(res.skills);
+        skillsCtx.current = { repoDir: res.dir, url: res.location };
+        setScreen({ kind: "skills", repoDir: res.dir, url: res.location });
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
@@ -122,9 +123,12 @@ export function App({
     case "url":
       return (
         <UrlInput
-          initialValue={initialUrl}
+          initialValue={sourceInput}
           history={history}
-          onSubmit={(url) => setScreen({ kind: "cloning", url })}
+          onSubmit={(url) => {
+            setSourceInput(url);
+            setScreen({ kind: "cloning", url });
+          }}
           onManage={() => setScreen({ kind: "manager" })}
         />
       );
@@ -134,7 +138,7 @@ export function App({
 
     case "cloning":
       return (
-        <Cloning url={screen.url} cachePath={cloneCachePath} error={cloneError} />
+        <Cloning url={screen.url} cachePath={cloneCachePath} local={localSource} error={cloneError} />
       );
 
     case "skills":

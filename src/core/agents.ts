@@ -35,6 +35,8 @@ const DEFS: Omit<AgentInfo, "status">[] = [
   { id: "openclaw", label: "OpenClaw", exe: "openclaw", skillsDir: agentSkillsDirs.openclaw },
   { id: "hermes", label: "Hermes", exe: "hermes", skillsDir: agentSkillsDirs.hermes },
   { id: "opencode", label: "OpenCode", exe: "opencode", skillsDir: agentSkillsDirs.opencode },
+  { id: "shared", label: "共享目录", exe: "", skillsDir: agentSkillsDirs.shared,
+    note: " · Codex / OpenCode / OpenClaw（默认配置）" },
 ];
 
 export function allAgentIds(): AgentId[] {
@@ -69,5 +71,6 @@ export function targetPathFor(agent: AgentId, skillName: string): string {
 /** Relative display path (swap home for ~) for compact UI. */
 export function displayPath(abs: string): string {
   const home = path.dirname(path.dirname(agentSkillsDirs.claude));
-  return abs.startsWith(home) ? "~" + abs.slice(home.length).replace(/\\/g, "/") : abs;
+  return abs === home || abs.startsWith(home + path.sep)
+    ? "~" + abs.slice(home.length).replace(/\\/g, "/") : abs;
 }
